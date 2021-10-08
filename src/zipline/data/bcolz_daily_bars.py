@@ -13,6 +13,7 @@
 # limitations under the License.
 from functools import partial
 import warnings
+import attr
 
 with warnings.catch_warnings():  # noqa
     warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -48,6 +49,8 @@ from zipline.utils.input_validation import expect_element
 from zipline.utils.numpy_utils import iNaT, float64_dtype, uint32_dtype
 from zipline.utils.memoize import lazyval
 from zipline.utils.cli import maybe_show_progress
+
+from zipline.utils.calendar_utils import TradingCalendar
 from ._equities import _compute_row_slices, _read_bcolz_data
 
 logger = logbook.Logger("UsEquityPricing")
@@ -124,6 +127,7 @@ def winsorise_uint32(df, invalid_data_behavior, column, *columns):
     return df
 
 
+@attr.s
 class BcolzDailyBarWriter(object):
     """
     Class capable of writing daily OHLCV data to disk in a format that can
@@ -145,27 +149,28 @@ class BcolzDailyBarWriter(object):
     zipline.data.bcolz_daily_bars.BcolzDailyBarReader
     """
 
-    _csv_dtypes = {
-        "open": float64_dtype,
-        "high": float64_dtype,
-        "low": float64_dtype,
-        "close": float64_dtype,
-        "volume": float64_dtype,
-    }
+    _filename = attr.ib()
+    _calendar = attr.ib()
+    _start_session = attr.ib()
+    _end_session = attr.ib()
+    _csv_dtypes = attr.ib(
+        init=False,
+        default={
+            "open": float64_dtype,
+            "high": float64_dtype,
+            "low": float64_dtype,
+            "close": float64_dtype,
+            "volume": float64_dtype,
+        },
+    )
 
-    def __init__(self, filename, calendar, start_session, end_session):
-        self._filename = filename
-
-        if start_session != end_session:
-            if not calendar.is_session(start_session):
-                raise ValueError("Start session %s is invalid!" % start_session)
-            if not calendar.is_session(end_session):
-                raise ValueError("End session %s is invalid!" % end_session)
-
-        self._start_session = start_session
-        self._end_session = end_session
-
-        self._calendar = calendar
+    @_start_session.validator
+    def _check_session(self, attribute, value):
+        if value != self._end_session:
+            if not self._calendar.is_session(value):
+                raise ValueError("Start session %s is invalid!" % value)
+            if not self._calendar.is_session(self._end_session):
+                raise ValueError("End session %s is invalid!" % self._end_session)
 
     @property
     def progress_bar_message(self):
