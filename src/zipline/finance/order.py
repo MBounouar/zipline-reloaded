@@ -14,24 +14,23 @@
 # limitations under the License.
 import math
 import uuid
+import attr
 from enum import IntEnum
 
 import zipline.protocol as zp
 from zipline.assets import Asset
 
-from zipline.utils.input_validation import expect_types
 
-ORDER_STATUS = IntEnum(
-    "ORDER_STATUS",
-    [
-        "OPEN",
-        "FILLED",
-        "CANCELLED",
-        "REJECTED",
-        "HELD",
-    ],
-    start=0,
-)
+class ORDER_STATUS(IntEnum):
+    OPEN = 0
+    FILLED = 1
+    CANCELLED = 2
+    REJECTED = 3
+    HELD = 4
+
+    def __str__(self):
+        return f"{self.name}"
+
 
 SELL = 1 << 0
 BUY = 1 << 1
@@ -41,73 +40,50 @@ LIMIT = 1 << 3
 ORDER_FIELDS_TO_IGNORE = {"type", "direction", "_status", "asset"}
 
 
+@attr.s(slots=True, weakref_slot=False, repr=False)
 class Order(object):
     # using __slots__ to save on memory usage.  Simulations can create many
     # Order objects and we keep them all in memory, so it's worthwhile trying
     # to cut down on the memory footprint of this object.
-    __slots__ = [
-        "id",
-        "dt",
-        "reason",
-        "created",
-        "asset",
-        "amount",
-        "filled",
-        "commission",
-        "_status",
-        "stop",
-        "limit",
-        "stop_reached",
-        "limit_reached",
-        "direction",
-        "type",
-        "broker_order_id",
-    ]
 
-    @expect_types(asset=Asset)
-    def __init__(
-        self,
-        dt,
-        asset,
-        amount,
-        stop=None,
-        limit=None,
-        filled=0,
-        commission=0,
-        id=None,
-    ):
-        """
-        @dt - datetime.datetime that the order was placed
-        @asset - asset for the order.
-        @amount - the number of shares to buy/sell
-                  a positive sign indicates a buy
-                  a negative sign indicates a sell
-        @filled - how many shares of the order have been filled so far
-        """
+    dt = attr.field()
+    asset = attr.field(validator=attr.validators.instance_of(Asset), repr=False)
+    amount = attr.field()
+    stop = attr.field(default=None)
+    limit = attr.field(default=None)
+    filled = attr.field(default=0)
+    commission = attr.field(default=0)
+    id = attr.field(default=None)
+    #
+    reason = attr.field(init=False, default=None)
+    created = attr.field(init=False)
+    _status = attr.field(init=False, default=ORDER_STATUS.OPEN, repr=False)
+    stop_reached = attr.field(init=False, default=False)
+    limit_reached = attr.field(init=False, default=False)
+    direction = attr.field(init=False, repr=False)
+    type = attr.field(init=False, default=zp.DATASOURCE_TYPE.ORDER, repr=False)
+    broker_order_id = attr.field(init=False, default=None)
 
-        # get a string representation of the uuid.
-        self.id = self.make_id() if id is None else id
-        self.dt = dt
-        self.reason = None
-        self.created = dt
-        self.asset = asset
-        self.amount = amount
-        self.filled = filled
-        self.commission = commission
-        self._status = ORDER_STATUS.OPEN
-        self.stop = stop
-        self.limit = limit
-        self.stop_reached = False
-        self.limit_reached = False
+    """
+     @dt - datetime.datetime that the order was placed
+     @asset - asset for the order.
+     @amount - the number of shares to buy/sell
+               a positive sign indicates a buy
+               a negative sign indicates a sell
+     @filled - how many shares of the order have been filled so far
+    """
+
+    def __attrs_post_init__(self):
+        self.id = self.make_id() if self.id is None else self.id
+        self.created = self.dt
         self.direction = math.copysign(1, self.amount)
-        self.type = zp.DATASOURCE_TYPE.ORDER
-        self.broker_order_id = None
 
     @staticmethod
     def make_id():
         return uuid.uuid4().hex
 
     def to_dict(self):
+
         dct = {
             name: getattr(self, name)
             for name in self.__slots__
@@ -287,7 +263,7 @@ class Order(object):
         """
         return "Order(%s)" % self.to_dict().__repr__()
 
-    def __unicode__(self):
+    def __str__(self):
         """
         Unicode representation for this object.
         """
