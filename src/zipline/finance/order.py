@@ -45,6 +45,8 @@ class Order(object):
     # using __slots__ to save on memory usage.  Simulations can create many
     # Order objects and we keep them all in memory, so it's worthwhile trying
     # to cut down on the memory footprint of this object.
+    # I don't think we need weakref: We are not adding to an existing class,
+    # or compiling an existing class with Cython otherwise we have to be careful and set to True
 
     dt = attr.field()
     asset = attr.field(validator=attr.validators.instance_of(Asset), repr=False)
@@ -83,15 +85,12 @@ class Order(object):
         return uuid.uuid4().hex
 
     def to_dict(self):
-
-        dct = {
-            name: getattr(self, name)
-            for name in self.__slots__
-            if name not in ORDER_FIELDS_TO_IGNORE
-        }
+        dct = attr.asdict(self)
+        for name in ORDER_FIELDS_TO_IGNORE:
+            dct.pop(name, None)
 
         if self.broker_order_id is None:
-            del dct["broker_order_id"]
+            dct.pop("broker_order_id", None)
 
         # Adding 'sid' for backwards compatibility with downstream consumers.
         dct["sid"] = self.asset

@@ -1,4 +1,4 @@
-# Copyright 2015 Quantopian, Inc.
+# Copyright 15 Quantopian, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,6 +14,7 @@
 from functools import partial
 import warnings
 import attr
+import typing
 
 with warnings.catch_warnings():  # noqa
     warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -24,6 +25,7 @@ import logbook
 
 from numpy import (
     array,
+    dtype,
     full,
     iinfo,
     nan,
@@ -149,11 +151,12 @@ class BcolzDailyBarWriter(object):
     zipline.data.bcolz_daily_bars.BcolzDailyBarReader
     """
 
-    _filename = attr.ib()
-    _calendar = attr.ib()
-    _start_session = attr.ib()
-    _end_session = attr.ib()
-    _csv_dtypes = attr.ib(
+    _filename = attr.field(type=str)
+    _calendar = attr.field(type=typing.Type[TradingCalendar])
+    _start_session = attr.field(type=typing.Type[Timestamp])
+    _end_session = attr.field(type=typing.Type[Timestamp])
+    _csv_dtypes = attr.field(
+        type=typing.Dict[str, dtype],
         init=False,
         default={
             "open": float64_dtype,

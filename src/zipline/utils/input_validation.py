@@ -24,6 +24,7 @@ import toolz.curried.operator as op
 from zipline.utils.compat import wraps
 from zipline.utils.functional import getattrs
 from zipline.utils.preprocess import call, preprocess
+from zipline.utils.pandas_utils import check_indexes_all_same
 
 _qualified_name = attrgetter("__qualname__")
 
@@ -886,3 +887,68 @@ def validate_keys(dict_, expected, funcname):
                 sorted(received),
             )
         )
+
+
+def make_validate_keys(expected):
+    def validate_keys(instance, attribute, value):
+        """Validate that a dictionary has an expected set of keys."""
+        expected_set = set(expected)
+        received = set(value)
+        funcname = type(instance).__name__
+
+        missing = expected_set - received
+        if missing:
+            raise ValueError(
+                "Missing keys in {}:\n"
+                "Expected Keys: {}\n"
+                "Received Keys: {}".format(
+                    funcname,
+                    sorted(expected_set),
+                    sorted(received),
+                )
+            )
+
+        unexpected = received - expected_set
+        if unexpected:
+            raise ValueError(
+                "Unexpected keys in {}:\n"
+                "Expected Keys: {}\n"
+                "Received Keys: {}".format(
+                    funcname,
+                    sorted(expected_set),
+                    sorted(received),
+                )
+            )
+
+    return validate_keys
+
+
+def verify_frames_aligned(frames, calendar):
+    """
+    Verify that DataFrames in ``frames`` have the same indexing scheme and are
+    aligned to ``calendar``.
+
+    Parameters
+    ----------
+    frames : list[pd.DataFrame]
+    calendar : trading_calendars.TradingCalendar
+
+    Raises
+    ------
+    ValueError
+        If frames have different indexes/columns, or if frame indexes do not
+        match a contiguous region of ``calendar``.
+    """
+    indexes = [f.index for f in frames]
+
+    check_indexes_all_same(indexes, message="DataFrame indexes don't match:")
+
+    columns = [f.columns for f in frames]
+    check_indexes_all_same(columns, message="DataFrame columns don't match:")
+
+    start, end = indexes[0][[0, -1]]
+    cal_sessions = calendar.sessions_in_range(start, end)
+    check_indexes_all_same(
+        [indexes[0], cal_sessions],
+        "DataFrame index doesn't match {} calendar:".format(calendar.name),
+    )

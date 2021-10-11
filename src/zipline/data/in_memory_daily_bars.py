@@ -1,3 +1,5 @@
+import attr
+from attr import validators
 import pandas as pd
 from pandas import NaT
 
@@ -5,10 +7,10 @@ from zipline.utils.calendar_utils import TradingCalendar
 
 from zipline.data.bar_reader import OHLCV, NoDataOnDate, NoDataForSid
 from zipline.data.session_bars import CurrencyAwareSessionBarReader
-from zipline.utils.input_validation import expect_types, validate_keys
-from zipline.utils.pandas_utils import check_indexes_all_same
+from zipline.utils.input_validation import make_validate_keys, verify_frames_aligned
 
 
+@attr.s
 class InMemoryDailyBarReader(CurrencyAwareSessionBarReader):
     """
     A SessionBarReader backed by a dictionary of in-memory DataFrames.
@@ -27,24 +29,24 @@ class InMemoryDailyBarReader(CurrencyAwareSessionBarReader):
         given calendar. Default is True.
     """
 
-    @expect_types(
-        frames=dict,
-        calendar=TradingCalendar,
-        verify_indices=bool,
-        currency_codes=pd.Series,
+    _frames = attr.field(
+        validator=[attr.validators.instance_of(dict), make_validate_keys(set(OHLCV))]
     )
-    def __init__(self, frames, calendar, currency_codes, verify_indices=True):
-        self._frames = frames
-        self._values = {key: frame.values for key, frame in frames.items()}
-        self._calendar = calendar
-        self._currency_codes = currency_codes
+    _calendar = attr.field(validator=attr.validators.instance_of(TradingCalendar))
+    _currency_codes = attr.field(validator=attr.validators.instance_of(pd.Series))
+    verify_indices = attr.field(
+        default=True, validator=attr.validators.instance_of(bool)
+    )
+    _sessions = attr.field(init=False)
+    _sids = attr.field(init=False)
+    _values = attr.field(init=False)
 
-        validate_keys(frames, set(OHLCV), type(self).__name__)
-        if verify_indices:
-            verify_frames_aligned(list(frames.values()), calendar)
-
-        self._sessions = frames["close"].index
-        self._sids = frames["close"].columns
+    def __attrs_post_init__(self):
+        self._sessions = self._frames["close"].index
+        self._sids = self._frames["close"].columns
+        self._values = {key: frame.values for key, frame in self._frames.items()}
+        if self.verify_indices:
+            verify_frames_aligned(list(self._frames.values()), self._calendar)
 
     @classmethod
     def from_dfs(cls, dfs, calendar, currency_codes):
@@ -130,34 +132,3 @@ class InMemoryDailyBarReader(CurrencyAwareSessionBarReader):
     def currency_codes(self, sids):
         codes = self._currency_codes
         return codes.loc[sids].to_numpy()
-
-
-def verify_frames_aligned(frames, calendar):
-    """
-    Verify that DataFrames in ``frames`` have the same indexing scheme and are
-    aligned to ``calendar``.
-
-    Parameters
-    ----------
-    frames : list[pd.DataFrame]
-    calendar : trading_calendars.TradingCalendar
-
-    Raises
-    ------
-    ValueError
-        If frames have different indexes/columns, or if frame indexes do not
-        match a contiguous region of ``calendar``.
-    """
-    indexes = [f.index for f in frames]
-
-    check_indexes_all_same(indexes, message="DataFrame indexes don't match:")
-
-    columns = [f.columns for f in frames]
-    check_indexes_all_same(columns, message="DataFrame columns don't match:")
-
-    start, end = indexes[0][[0, -1]]
-    cal_sessions = calendar.sessions_in_range(start, end)
-    check_indexes_all_same(
-        [indexes[0], cal_sessions],
-        "DataFrame index doesn't match {} calendar:".format(calendar.name),
-    )
