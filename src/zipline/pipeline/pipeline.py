@@ -1,9 +1,11 @@
+import attr
+from attr import validators
 from zipline.errors import UnsupportedPipelineOutput
 from zipline.utils.input_validation import (
     expect_element,
     expect_types,
-    optional,
 )
+
 
 from .domain import Domain, GENERIC, infer_domain
 from .graph import ExecutionPlan, TermGraph, SCREEN_NAME
@@ -11,6 +13,7 @@ from .filters import Filter
 from .term import AssetExists, ComputableTerm, Term
 
 
+@attr.s(slots=True, weakref_slot=True)
 class Pipeline(object):
     """
     A Pipeline object represents a collection of named expressions to be
@@ -35,15 +38,19 @@ class Pipeline(object):
         Initial screen.
     """
 
-    __slots__ = ("_columns", "_screen", "_domain", "__weakref__")
+    _columns = attr.field(
+        default=None, validator=validators.optional(validators.instance_of(dict))
+    )
+    _screen = attr.field(
+        default=None, validator=validators.optional(validators.instance_of(Filter))
+    )
+    _domain = attr.field(default=GENERIC, validator=validators.instance_of(Domain))
 
-    @expect_types(columns=optional(dict), screen=optional(Filter), domain=Domain)
-    def __init__(self, columns=None, screen=None, domain=GENERIC):
-        if columns is None:
-            columns = {}
-
+    def __attrs_post_init__(self):
+        if self._columns is None:
+            self._columns = {}
         validate_column = self.validate_column
-        for column_name, term in columns.items():
+        for column_name, term in self._columns.items():
             validate_column(column_name, term)
             if not isinstance(term, ComputableTerm):
                 raise TypeError(
@@ -53,10 +60,6 @@ class Pipeline(object):
                         term=term,
                     )
                 )
-
-        self._columns = columns
-        self._screen = screen
-        self._domain = domain
 
     @property
     def columns(self):

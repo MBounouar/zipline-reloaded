@@ -47,25 +47,24 @@ class MutableView(object):
 
 # Datasource type should completely determine the other fields of a
 # message with its type.
-DATASOURCE_TYPE = IntEnum(
-    "DATASOURCE_TYPE",
-    [
-        "AS_TRADED_EQUITY",
-        "MERGER",
-        "SPLIT",
-        "DIVIDEND",
-        "TRADE",
-        "TRANSACTION",
-        "ORDER",
-        "EMPTY",
-        "DONE",
-        "CUSTOM",
-        "BENCHMARK",
-        "COMMISSION",
-        "CLOSE_POSITION",
-    ],
-    start=0,
-)
+class DATASOURCE_TYPE(IntEnum):
+    AS_TRADED_EQUITY = 0
+    MERGER = 1
+    SPLIT = 2
+    DIVIDEND = 3
+    TRADE = 4
+    TRANSACTION = 5
+    ORDER = 6
+    EMPTY = 7
+    DONE = 8
+    CUSTOM = 9
+    BENCHMARK = 10
+    COMMISSION = 11
+    CLOSE_POSITION = 12
+
+    def __str__(self):
+        return f"{self.name}"
+
 
 # Expected fields/index values for a dividend Series.
 DIVIDEND_FIELDS = [
