@@ -151,12 +151,11 @@ class BcolzDailyBarWriter(object):
     zipline.data.bcolz_daily_bars.BcolzDailyBarReader
     """
 
-    _filename = attr.field(type=str)
-    _calendar = attr.field(type=typing.Type[TradingCalendar])
-    _start_session = attr.field(type=typing.Type[Timestamp])
-    _end_session = attr.field(type=typing.Type[Timestamp])
+    _filename = attr.field()
+    _calendar = attr.field()
+    _start_session = attr.field()
+    _end_session = attr.field()
     _csv_dtypes = attr.field(
-        type=typing.Dict[str, dtype],
         init=False,
         default={
             "open": float64_dtype,
