@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import attr
 from abc import ABCMeta, abstractmethod
 import json
 import os
@@ -325,6 +326,7 @@ class BcolzMinuteBarMetadata(object):
             json.dump(metadata, fp)
 
 
+@attr.s
 class BcolzMinuteBarWriter(object):
     """
     Class capable of writing minute OHLCV data to disk into bcolz format.
@@ -417,36 +419,28 @@ class BcolzMinuteBarWriter(object):
 
     COL_NAMES = ("open", "high", "low", "close", "volume")
 
-    def __init__(
-        self,
-        rootdir,
-        calendar,
-        start_session,
-        end_session,
-        minutes_per_day,
-        default_ohlc_ratio=OHLC_RATIO,
-        ohlc_ratios_per_sid=None,
-        expectedlen=DEFAULT_EXPECTEDLEN,
-        write_metadata=True,
-    ):
+    _rootdir = attr.field()
+    _calendar = attr.field()
+    _start_session = attr.field()
+    _end_session = attr.field()
+    _minutes_per_day = attr.field()
+    _default_ohlc_ratio = attr.field(default=OHLC_RATIO)
+    _ohlc_ratios_per_sid = attr.field(default=None)
+    _expectedlen = attr.field(default=DEFAULT_EXPECTEDLEN)
+    write_metadata = attr.field(default=True)
 
-        self._rootdir = rootdir
-        self._start_session = start_session
-        self._end_session = end_session
-        self._calendar = calendar
-        slicer = calendar.schedule.index.slice_indexer(start_session, end_session)
-        self._schedule = calendar.schedule[slicer]
+    def __attrs_post_init__(self):
+        slicer = self._calendar.schedule.index.slice_indexer(
+            self._start_session, self._end_session
+        )
+        self._schedule = self._calendar.schedule[slicer]
         self._session_labels = self._schedule.index
-        self._minutes_per_day = minutes_per_day
-        self._expectedlen = expectedlen
-        self._default_ohlc_ratio = default_ohlc_ratio
-        self._ohlc_ratios_per_sid = ohlc_ratios_per_sid
 
         self._minute_index = _calc_minute_index(
             self._schedule.market_open, self._minutes_per_day
         )
 
-        if write_metadata:
+        if self.write_metadata:
             metadata = BcolzMinuteBarMetadata(
                 self._default_ohlc_ratio,
                 self._ohlc_ratios_per_sid,
