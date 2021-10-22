@@ -4,9 +4,9 @@ This page is intended for developers of Zipline, people who want to contribute t
 
 All contributions, bug reports, bug fixes, documentation improvements, enhancements and ideas are welcome. We `track issues`__ on `GitHub`__ and also have a `mailing list`__ where you can ask questions.
 
-__ https://github.com/quantopian/zipline/issues
+__ https://github.com/stefan-jansen/zipline-reloaded/issues
 __ https://github.com/
-__ https://groups.google.com/forum/#!forum/zipline
+__ https://exchange.ml4trading.io/
 
 Creating a Development Environment
 ----------------------------------
@@ -15,7 +15,7 @@ First, you'll need to clone Zipline by running:
 
 .. code-block:: bash
 
-   $ git clone git@github.com:your-github-username/zipline.git
+   $ git clone git@github.com:stefan-jansen/zipline-reloaded.git
 
 Then check out to a new branch where you can make your changes:
 
@@ -35,7 +35,6 @@ __ https://docs.python.org/3/library/venv.html
 
    $ python3 -m venv venv
    $ source venv/bin/activate
-   $ etc/dev-install
 
 Or, using `virtualenvwrapper`__:
 
@@ -44,7 +43,6 @@ __ https://virtualenvwrapper.readthedocs.io/en/latest/
 .. code-block:: bash
 
    $ mkvirtualenv zipline
-   $ etc/dev-install
 
 After installation, you should be able to use the ``zipline`` command line interface from your virtualenv:
 
@@ -56,7 +54,7 @@ To finish, make sure `tests`__ pass.
 
 __ #style-guide-running-tests
 
-If you get an error running nosetests after setting up a fresh virtualenv, please try running
+If you get an error running pytest after setting up a fresh virtualenv, please try running
 
 .. code-block:: bash
 
@@ -82,17 +80,18 @@ __ https://docs.docker.com/get-started/
 Style Guide & Running Tests
 ---------------------------
 
-We use `flake8`__ for checking style requirements and `nosetests`__ to run Zipline tests. Our `continuous integration`__ tools will run these commands.
+We use `flake8`__ for checking style requirements, `black`__ for code formatting and `pytest`__ to run Zipline tests. Our `continuous integration`__ tools will run these commands.
 
 __ https://flake8.pycqa.org/en/latest/
-__ https://nose.readthedocs.io/en/latest/
+__ https://black.readthedocs.io/en/stable/
+__ https://docs.pytest.org/en/latest/
 __ https://en.wikipedia.org/wiki/Continuous_integration
 
 Before submitting patches or pull requests, please ensure that your changes pass when running:
 
 .. code-block:: bash
 
-   $ flake8 zipline tests
+   $ flake8 src/zipline tests
 
 In order to run tests locally, you'll need `TA-lib`__, which you can install on Linux by running:
 
@@ -115,15 +114,11 @@ And for ``TA-lib`` on OS X you can just run:
 
 Then run ``pip install`` TA-lib:
 
-.. code-block:: bash
-
-   $ pip install -r ./etc/requirements_talib.in -c ./etc/requirements_locked.txt
-
 You should now be free to run tests:
 
 .. code-block:: bash
 
-   $ nosetests
+   $ pytest tests
 
 
 Continuous Integration
@@ -191,10 +186,6 @@ We use `Sphinx`__ to generate documentation for Zipline, which you will need to 
 
 __ https://www.sphinx-doc.org/en/master/
 
-
-.. code-block:: bash
-
-   $ pip install -r ./etc/requirements_docs.in -c ./etc/requirements_locked.txt
 
 If you would like to use Anaconda, please follow :ref:`the installation guide<managing-conda-environments>` to create and activate an environment, and then run the command above.
 
