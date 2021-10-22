@@ -66,7 +66,7 @@ During development, you can rebuild the C extensions by running:
 
 .. code-block:: bash
 
-   $ python setup.py build_ext --inplace
+   $ ./rebuid-cython.sh
 
 
 Development with Docker
