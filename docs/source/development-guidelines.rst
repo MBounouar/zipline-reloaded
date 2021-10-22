@@ -72,7 +72,7 @@ During development, you can rebuild the C extensions by running:
 Development with Docker
 -----------------------
 
-If you want to work with zipline using a `Docker`__ container, you'll need to build the ``Dockerfile`` in the Zipline root directory, and then build ``Dockerfile-dev``. Instructions for building both containers can be found in ``Dockerfile`` and ``Dockerfile-dev``, respectively.
+[TODO]
 
 __ https://docs.docker.com/get-started/
 
