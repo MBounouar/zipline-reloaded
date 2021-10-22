@@ -123,57 +123,18 @@ You should now be free to run tests:
 
 Continuous Integration
 ----------------------
-
-We use `Travis CI`__ for Linux-64 bit builds and `AppVeyor`__ for Windows-64 bit builds.
-
-.. note::
-
-   We do not currently have CI for OSX-64 bit builds. 32-bit builds may work but are not included in our integration tests.
-
-__ https://travis-ci.org/quantopian/zipline
-__ https://ci.appveyor.com/project/quantopian/zipline
-
+[TODO]
 
 Packaging
 ---------
 
-To learn about how we build Zipline conda packages, you can read `this`__ section in our release process notes.
-
-__ release-process.html#uploading-conda-packages
+[TODO]
 
 
 Updating dependencies
 ---------------------
 
-If you update the zipline codebase so that it now depends on a new version of a library,
-then you should update the lower bound on that dependency in ``etc/requirements.in``
-(or ``etc/requirements_dev.in`` as appropriate).
-We use `pip-compile`__ to find mutually compatible versions of dependencies for the
-``etc/requirements_locked.txt`` lockfile used in our CI environments.
-
-__ https://github.com/jazzband/pip-tools/
-
-When you update a dependency in an ``.in`` file,
-you need to re-run the ``pip-compile`` command included in the header of `the lockfile`__;
-otherwise the lockfile will not meet the constraints specified to pip by zipline
-at install time (via ``etc/requirements.in`` via ``setup.py``).
-
-__ https://github.com/quantopian/zipline/tree/master/etc/requirements_locked.txt
-
-If the zipline codebase can still support an old version of a dependency, but you want
-to update to a newer version of that library in our CI environments, then only the
-lockfile needs updating. To update the lockfile without bumping the lower bound,
-re-run the ``pip-compile`` command included in the header of the lockfile with the
-addition of the ``--upgrade-package`` or ``-P`` `flag`__, e.g.
-
-__ https://github.com/jazzband/pip-tools/#updating-requirements
-
-.. code-block:: bash
-
-   $ pip-compile --output-file=etc/reqs.txt etc/reqs.in ... -P six==1.13.0 -P "click>4.0.0"
-
-As you can see above, you can include multiple such constraints in a single invocation of ``pip-compile``.
-
+[TODO]
 
 Contributing to the Docs
 ------------------------
@@ -255,5 +216,5 @@ __ https://github.com/numpy/numpy/blob/master/doc/HOWTO_DOCUMENT.rst.txt
 Updating the Whatsnew
 ---------------------
 
-We have a set of `whatsnew <https://github.com/quantopian/zipline/tree/master/docs/source/whatsnew>`__ files that are used for documenting changes that have occurred between different versions of Zipline.
+We have a set of `whatsnew <https://github.com/stefan-jansen/zipline-reloaded/tree/main/docs/source/whatsnew>`__ files that are used for documenting changes that have occurred between different versions of Zipline.
 Once you've made a change to Zipline, in your Pull Request, please update the most recent ``whatsnew`` file with a comment about what you changed. You can find examples in previous ``whatsnew`` files.
