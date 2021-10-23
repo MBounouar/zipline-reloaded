@@ -44,7 +44,7 @@ __ https://virtualenvwrapper.readthedocs.io/en/latest/
 
    $ mkvirtualenv zipline
 
-run the ``pip install -e '.[test]' `` to install :
+run the ``pip install -e .[test]`` to install :
 
 After installation, you should be able to use the ``zipline`` command line interface from your virtualenv:
 
