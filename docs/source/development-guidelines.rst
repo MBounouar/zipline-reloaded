@@ -20,14 +20,14 @@ First, you'll need to clone Zipline by running:
 Then check out to a new branch where you can make your changes:
 
 .. code-block:: bash
-
+   $ cd zipline-reloaded
    $ git checkout -b some-short-descriptive-name
 
 If you don't already have them, you'll need some C library dependencies. You can follow the `install guide`__ to get the appropriate dependencies.
 
-__ install.html
+__ install.rst
 
-Once you've created and activated a `virtual environment`__, run the ``etc/dev-install`` script to install all development dependencies in their required order:
+Once you've created and activated a `virtual environment`__
 
 __ https://docs.python.org/3/library/venv.html
 
@@ -44,6 +44,8 @@ __ https://virtualenvwrapper.readthedocs.io/en/latest/
 
    $ mkvirtualenv zipline
 
+run the ``pip install -e '.[test]' `` to install :
+
 After installation, you should be able to use the ``zipline`` command line interface from your virtualenv:
 
 .. code-block:: bash
@@ -54,27 +56,11 @@ To finish, make sure `tests`__ pass.
 
 __ #style-guide-running-tests
 
-If you get an error running pytest after setting up a fresh virtualenv, please try running
-
-.. code-block:: bash
-
-   # where zipline is the name of your virtualenv
-   $ deactivate zipline
-   $ workon zipline
-
 During development, you can rebuild the C extensions by running:
 
 .. code-block:: bash
 
    $ ./rebuid-cython.sh
-
-
-Development with Docker
------------------------
-
-[TODO]
-
-__ https://docs.docker.com/get-started/
 
 
 Style Guide & Running Tests
@@ -130,11 +116,6 @@ Packaging
 
 [TODO]
 
-
-Updating dependencies
----------------------
-
-[TODO]
 
 Contributing to the Docs
 ------------------------
