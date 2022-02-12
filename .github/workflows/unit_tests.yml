@@ -79,7 +79,7 @@ jobs:
         run: |
           python -VV
           python -m pip install --upgrade pip
-          pip install tox tox-gh-actions coveralls
+          pip install tox tox-gh-actions
           pip install -e .[test]
 
       - name: Lint with flake8
@@ -90,7 +90,9 @@ jobs:
         run: |
           tox
 
-      - name: Upload coverage data to coveralls.io
-        run: coveralls --service=github
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload coverage data to Codecov
+        uses: codecov/codecov-action@v2
+        with:
+          fail_ci_if_error: true
+          name: codecov-umbrella
+          verbose: true
