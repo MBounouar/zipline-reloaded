@@ -1,3 +1,8 @@
+[run]
+source = zipline
+omit =
+    */tests/*
+
 [report]
 omit =
     .venv/*
