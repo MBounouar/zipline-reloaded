@@ -95,6 +95,7 @@ jobs:
       - name: Upload coverage data to Codecov
         uses: codecov/codecov-action@v2
         with:
+          files:./coverage.xml
           fail_ci_if_error: true
           name: codecov-umbrella
           verbose: true
