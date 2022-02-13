@@ -1,2 +1,4 @@
 # ignore:
 #   - "*/tests/*"
+fixes:
+  - "/home/runner/work/zipline-reloaded/::"
