@@ -5,6 +5,9 @@ on:
   pull_request:
     branches:
       - main
+  push:
+    branches:
+      -codecov
   schedule:
     - cron: "0 9 * * 6"
 
