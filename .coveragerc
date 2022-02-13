@@ -1,8 +1,7 @@
-[run]
-branch=True
 [report]
 omit =
-    tests/*
+    .venv/*
+    */tests/*
     */python?.?/*
 exclude_lines =
     raise NotImplementedError
