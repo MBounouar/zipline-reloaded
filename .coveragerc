@@ -1,12 +1,5 @@
-[run]
-source = zipline
-omit =
-    */tests/*
-
 [report]
 omit =
-    .venv/*
-    */tests/*
     */python?.?/*
 exclude_lines =
     raise NotImplementedError
