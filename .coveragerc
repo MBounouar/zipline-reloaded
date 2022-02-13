@@ -1,5 +1,8 @@
+[run]
+branch=True
 [report]
 omit =
+    tests/*
     */python?.?/*
 exclude_lines =
     raise NotImplementedError
