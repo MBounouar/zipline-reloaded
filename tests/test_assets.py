@@ -16,28 +16,36 @@
 """
 Tests for the zipline.assets package
 """
+import os
+import pickle
+import re
+import string
+import sys
+import uuid
 from collections import namedtuple
 from datetime import timedelta
 from functools import partial
-import os
-import pickle
-import string
-import sys
-from types import GetSetDescriptorType
-import uuid
 
-from parameterized import parameterized
 import numpy as np
 import pandas as pd
+import pytest
 import sqlalchemy as sa
-
+from toolz import concat, valmap
 from zipline.assets import (
     Asset,
-    ExchangeInfo,
-    Equity,
-    Future,
     AssetDBWriter,
     AssetFinder,
+    Equity,
+    ExchangeInfo,
+    Future,
+)
+from zipline.assets.asset_db_migrations import downgrade
+from zipline.assets.asset_db_schema import ASSET_DB_VERSION
+from zipline.assets.asset_writer import (
+    SQLITE_MAX_VARIABLE_NUMBER,
+    _futures_defaults,
+    check_version_info,
+    write_version_info,
 )
 from zipline.assets.assets import OwnershipPeriod
 from zipline.assets.synthetic import (
@@ -45,17 +53,9 @@ from zipline.assets.synthetic import (
     make_rotating_equity_info,
     make_simple_equity_info,
 )
-from toolz import valmap, concat
-
-from zipline.assets.asset_writer import (
-    check_version_info,
-    write_version_info,
-    _futures_defaults,
-    SQLITE_MAX_VARIABLE_NUMBER,
-)
-from zipline.assets.asset_db_schema import ASSET_DB_VERSION
-from zipline.assets.asset_db_migrations import downgrade
 from zipline.errors import (
+    AssetDBImpossibleDowngrade,
+    AssetDBVersionError,
     EquitiesNotFound,
     FutureContractsNotFound,
     MultipleSymbolsFound,
@@ -63,34 +63,21 @@ from zipline.errors import (
     MultipleValuesFoundForField,
     MultipleValuesFoundForSid,
     NoValueForSid,
-    AssetDBVersionError,
     SameSymbolUsedAcrossCountries,
     SidsNotFound,
     SymbolNotFound,
-    AssetDBImpossibleDowngrade,
     ValueNotFoundForField,
 )
 from zipline.testing import (
     all_subindices,
-    empty_assets_db,
-    parameter_space,
     powerset,
-    tmp_assets_db,
     tmp_asset_finder,
+    tmp_assets_db,
 )
+from zipline.testing.predicates import assert_frame_equal, assert_index_equal
 
-from zipline.testing.predicates import assert_index_equal, assert_frame_equal
-from zipline.testing.fixtures import (
-    WithAssetFinder,
-    ZiplineTestCase,
-    WithTradingCalendars,
-)
-import pytest
-import re
-
-Case = namedtuple("Case", "finder inputs as_of country_code expected")
-
-minute = pd.Timedelta(minutes=1)
+CASE = namedtuple("CASE", "finder inputs as_of country_code expected")
+MINUTE = pd.Timedelta(minutes=1)
 
 
 def build_lookup_generic_cases():
@@ -195,7 +182,7 @@ def build_lookup_generic_cases():
     with temp_db as assets_db:
         finder = AssetFinder(assets_db)
 
-        case = partial(Case, finder)
+        case = partial(CASE, finder)
 
         equities = finder.retrieve_all(range(5))
         dupe_old, dupe_new, unique, dupe_us, dupe_ca = equities
@@ -222,7 +209,7 @@ def build_lookup_generic_cases():
             yield case("DUPLICATED_IN_US", dupe_old_start, country, dupe_old)
             yield case(
                 "DUPLICATED_IN_US",
-                dupe_new_start - minute,
+                dupe_new_start - MINUTE,
                 country,
                 dupe_old,
             )
@@ -230,7 +217,7 @@ def build_lookup_generic_cases():
             yield case("DUPLICATED_IN_US", dupe_new_start, country, dupe_new)
             yield case(
                 "DUPLICATED_IN_US",
-                dupe_new_start + minute,
+                dupe_new_start + MINUTE,
                 country,
                 dupe_new,
             )
@@ -304,41 +291,7 @@ def build_lookup_generic_cases():
         )
 
 
-@pytest.fixture(scope="function")
-def set_asset(request):
-    # Dynamically list the Asset properties we want to test.
-    request.cls.asset_attrs = [
-        name
-        for name, value in vars(Asset).items()
-        if isinstance(value, GetSetDescriptorType)
-    ]
-
-    # Very wow
-    request.cls.asset = Asset(
-        1337,
-        symbol="DOGE",
-        asset_name="DOGECOIN",
-        start_date=pd.Timestamp("2013-12-08 9:31", tz="UTC"),
-        end_date=pd.Timestamp("2014-06-25 11:21", tz="UTC"),
-        first_traded=pd.Timestamp("2013-12-08 9:31", tz="UTC"),
-        auto_close_date=pd.Timestamp("2014-06-26 11:21", tz="UTC"),
-        exchange_info=ExchangeInfo("THE MOON", "MOON", "??"),
-    )
-
-    request.cls.test_exchange = ExchangeInfo("test full", "test", "??")
-    request.cls.asset3 = Asset(3, exchange_info=request.cls.test_exchange)
-    request.cls.asset4 = Asset(4, exchange_info=request.cls.test_exchange)
-    request.cls.asset5 = Asset(
-        5,
-        exchange_info=ExchangeInfo(
-            "still testing",
-            "still testing",
-            "??",
-        ),
-    )
-
-
-@pytest.mark.usefixtures("set_asset")
+@pytest.mark.usefixtures("set_test_asset")
 class TestAsset:
     def test_asset_object(self):
         the_asset = Asset(
@@ -422,66 +375,39 @@ class TestAsset:
             "a" < self.asset3
 
 
-class TestFuture(WithAssetFinder, ZiplineTestCase):
-    @classmethod
-    def make_futures_info(cls):
-        return pd.DataFrame.from_dict(
-            {
-                2468: {
-                    "symbol": "OMH15",
-                    "root_symbol": "OM",
-                    "notice_date": pd.Timestamp("2014-01-20", tz="UTC"),
-                    "expiration_date": pd.Timestamp("2014-02-20", tz="UTC"),
-                    "auto_close_date": pd.Timestamp("2014-01-18", tz="UTC"),
-                    "tick_size": 0.01,
-                    "multiplier": 500.0,
-                    "exchange": "TEST",
-                },
-                0: {
-                    "symbol": "CLG06",
-                    "root_symbol": "CL",
-                    "start_date": pd.Timestamp("2005-12-01", tz="UTC"),
-                    "notice_date": pd.Timestamp("2005-12-20", tz="UTC"),
-                    "expiration_date": pd.Timestamp("2006-01-20", tz="UTC"),
-                    "multiplier": 1.0,
-                    "exchange": "TEST",
-                },
-            },
-            orient="index",
-        )
-
-    @classmethod
-    def init_class_fixtures(cls):
-        super(TestFuture, cls).init_class_fixtures()
-        cls.future = cls.asset_finder.lookup_future_symbol("OMH15")
-        cls.future2 = cls.asset_finder.lookup_future_symbol("CLG06")
-
+@pytest.mark.usefixtures("set_test_futures")
+class TestFuture:
     def test_repr(self):
-        reprd = repr(self.future)
+        future_symbol = self.asset_finder.lookup_future_symbol("OMH15")
+        reprd = repr(future_symbol)
         assert "Future(2468 [OMH15])" == reprd
 
     def test_reduce(self):
+        future_symbol = self.asset_finder.lookup_future_symbol("OMH15")
         assert (
-            pickle.loads(pickle.dumps(self.future)).to_dict() == self.future.to_dict()
+            pickle.loads(pickle.dumps(future_symbol)).to_dict()
+            == future_symbol.to_dict()
         )
 
     def test_to_and_from_dict(self):
-        dictd = self.future.to_dict()
+        future_symbol = self.asset_finder.lookup_future_symbol("OMH15")
+        dictd = future_symbol.to_dict()
         for field in _futures_defaults.keys():
             assert field in dictd
 
         from_dict = Future.from_dict(dictd)
         assert isinstance(from_dict, Future)
-        assert self.future == from_dict
+        assert future_symbol == from_dict
 
     def test_root_symbol(self):
-        assert "OM" == self.future.root_symbol
+        future_symbol = self.asset_finder.lookup_future_symbol("OMH15")
+        assert "OM" == future_symbol.root_symbol
 
     def test_lookup_future_symbol(self):
         """
         Test the lookup_future_symbol method.
         """
-        om = TestFuture.asset_finder.lookup_future_symbol("OMH15")
+        om = self.asset_finder.lookup_future_symbol("OMH15")
         assert om.sid == 2468
         assert om.symbol == "OMH15"
         assert om.root_symbol == "OM"
@@ -489,7 +415,7 @@ class TestFuture(WithAssetFinder, ZiplineTestCase):
         assert om.expiration_date == pd.Timestamp("2014-02-20", tz="UTC")
         assert om.auto_close_date == pd.Timestamp("2014-01-18", tz="UTC")
 
-        cl = TestFuture.asset_finder.lookup_future_symbol("CLG06")
+        cl = self.asset_finder.lookup_future_symbol("CLG06")
         assert cl.sid == 0
         assert cl.symbol == "CLG06"
         assert cl.root_symbol == "CL"
@@ -498,30 +424,22 @@ class TestFuture(WithAssetFinder, ZiplineTestCase):
         assert cl.expiration_date == pd.Timestamp("2006-01-20", tz="UTC")
 
         with pytest.raises(SymbolNotFound):
-            TestFuture.asset_finder.lookup_future_symbol("")
+            self.asset_finder.lookup_future_symbol("")
 
         with pytest.raises(SymbolNotFound):
-            TestFuture.asset_finder.lookup_future_symbol("#&?!")
+            self.asset_finder.lookup_future_symbol("#&?!")
 
         with pytest.raises(SymbolNotFound):
-            TestFuture.asset_finder.lookup_future_symbol("FOOBAR")
+            self.asset_finder.lookup_future_symbol("FOOBAR")
 
         with pytest.raises(SymbolNotFound):
-            TestFuture.asset_finder.lookup_future_symbol("XXX99")
+            self.asset_finder.lookup_future_symbol("XXX99")
 
 
-class AssetFinderTestCase(WithTradingCalendars, ZiplineTestCase):
-    asset_finder_type = AssetFinder
-
+@pytest.mark.usefixtures("set_test_asset_finder", "with_trading_calendars")
+class TestAssetFinder:
     def write_assets(self, **kwargs):
         self._asset_writer.write(**kwargs)
-
-    def init_instance_fixtures(self):
-        super(AssetFinderTestCase, self).init_instance_fixtures()
-
-        conn = self.enter_instance_context(empty_assets_db())
-        self._asset_writer = AssetDBWriter(conn)
-        self.asset_finder = self.asset_finder_type(conn)
 
     def test_blocked_lookup_symbol_query(self):
         # we will try to query for more variables than sqlite supports
@@ -797,7 +715,8 @@ class AssetFinderTestCase(WithTradingCalendars, ZiplineTestCase):
         cases = build_lookup_generic_cases()
         # Make sure we clean up temp resources in the generator if we don't
         # consume the whole thing because of a failure.
-        self.add_instance_callback(cases.close)
+        # Pytest has not instance call back DISABLED
+        # self.add_instance_callback(cases.close)
         for finder, inputs, reference_date, country, expected in cases:
             results, missing = finder.lookup_generic(
                 inputs,
@@ -1371,11 +1290,12 @@ class AssetFinderTestCase(WithTradingCalendars, ZiplineTestCase):
             results = finder.group_by_type(equity_sids + future_sids)
             assert results == {"equity": set(equity_sids), "future": set(future_sids)}
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "type_, lookup_name, failure_type",
         [
             (Equity, "retrieve_equities", EquitiesNotFound),
             (Future, "retrieve_futures_contracts", FutureContractsNotFound),
-        ]
+        ],
     )
     def test_retrieve_specific_type(self, type_, lookup_name, failure_type):
         equities = make_simple_equity_info(
@@ -1465,12 +1385,13 @@ class AssetFinderTestCase(WithTradingCalendars, ZiplineTestCase):
                 + list(futures.symbol.loc[future_sids])
             ) == list(asset.symbol for asset in results)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "error_type, singular, plural",
         [
             (EquitiesNotFound, "equity", "equities"),
             (FutureContractsNotFound, "future contract", "future contracts"),
             (SidsNotFound, "asset", "assets"),
-        ]
+        ],
     )
     def test_error_message_plurality(self, error_type, singular, plural):
         try:
@@ -1483,16 +1404,10 @@ class AssetFinderTestCase(WithTradingCalendars, ZiplineTestCase):
             assert str(e) == "No {plural} found for sids: [1, 2].".format(plural=plural)
 
 
-class AssetFinderMultipleCountries(WithTradingCalendars, ZiplineTestCase):
+@pytest.mark.usefixtures("set_test_asset_finder", "with_trading_calendars")
+class TestAssetFinderMultipleCountries:
     def write_assets(self, **kwargs):
         self._asset_writer.write(**kwargs)
-
-    def init_instance_fixtures(self):
-        super(AssetFinderMultipleCountries, self).init_instance_fixtures()
-
-        conn = self.enter_instance_context(empty_assets_db())
-        self._asset_writer = AssetDBWriter(conn)
-        self.asset_finder = AssetFinder(conn)
 
     @staticmethod
     def country_code(n):
@@ -1994,23 +1909,7 @@ class AssetFinderMultipleCountries(WithTradingCalendars, ZiplineTestCase):
             assert result.sid == n * 2 + 1
 
 
-@pytest.fixture(scope="function")
-def sql_db(request):
-    url = "sqlite:///:memory:"
-    request.cls.engine = sa.create_engine(url)
-    yield request.cls.engine
-    request.cls.engine.dispose()
-    request.cls.engine = None
-
-
-@pytest.fixture(scope="function")
-def setup_empty_assets_db(sql_db, request):
-    AssetDBWriter(sql_db).write(None)
-    request.cls.metadata = sa.MetaData(sql_db)
-    request.cls.metadata.reflect(bind=sql_db)
-
-
-@pytest.mark.usefixtures("sql_db", "setup_empty_assets_db")
+@pytest.mark.usefixtures("empty_assets_db")
 class TestAssetDBVersioning:
     def test_check_version(self):
         version_table = self.metadata.tables["version_info"]
@@ -2183,42 +2082,17 @@ class TestAssetDBVersioning:
         assert expected_sids == actual_sids
 
 
-class TestVectorizedSymbolLookup(WithAssetFinder, ZiplineTestCase):
-    @classmethod
-    def make_equity_info(cls):
-        T = partial(pd.Timestamp, tz="UTC")
-
-        def asset(sid, symbol, start_date, end_date):
-            return dict(
-                sid=sid,
-                symbol=symbol,
-                start_date=T(start_date),
-                end_date=T(end_date),
-                exchange="NYSE",
-            )
-
-        records = [
-            asset(1, "A", "2014-01-02", "2014-01-31"),
-            asset(2, "A", "2014-02-03", "2015-01-02"),
-            asset(3, "B", "2014-01-02", "2014-01-15"),
-            asset(4, "B", "2014-01-17", "2015-01-02"),
-            asset(5, "C", "2001-01-02", "2015-01-02"),
-            asset(6, "D", "2001-01-02", "2015-01-02"),
-            asset(7, "FUZZY", "2001-01-02", "2015-01-02"),
-        ]
-        return pd.DataFrame.from_records(records)
-
-    @parameter_space(
-        as_of=pd.to_datetime(
-            [
-                "2014-01-02",
-                "2014-01-15",
-                "2014-01-17",
-                "2015-01-02",
-            ],
-            utc=True,
-        ),
-        symbols=[
+@pytest.mark.usefixtures("set_test_vectorized_symbol_lookup")
+class TestVectorizedSymbolLookup:
+    @pytest.mark.parametrize(
+        "as_of",
+        pd.to_datetime(
+            ["2014-01-02", "2014-01-15", "2014-01-17", "2015-01-02"], utc=True
+        ).to_list(),
+    )
+    @pytest.mark.parametrize(
+        "symbols",
+        (
             [],
             ["A"],
             ["B"],
@@ -2227,7 +2101,7 @@ class TestVectorizedSymbolLookup(WithAssetFinder, ZiplineTestCase):
             list("ABCD"),
             list("ABCDDCBA"),
             list("AABBAABBACABD"),
-        ],
+        ),
     )
     def test_lookup_symbols(self, as_of, symbols):
         af = self.asset_finder
@@ -2345,16 +2219,7 @@ class TestExchangeInfo:
             assert asset.exchange_info == expected_exchange_info
 
 
-@pytest.fixture(scope="function")
-def _setup(request, tmp_path):
-    request.cls.assets_db_path = path = os.path.join(
-        str(tmp_path),
-        "assets.db",
-    )
-    request.cls.writer = AssetDBWriter(path)
-
-
-@pytest.mark.usefixtures("_setup")
+@pytest.mark.usefixtures("set_test_write")
 class TestWrite:
     def new_asset_finder(self):
         return AssetFinder(self.assets_db_path)

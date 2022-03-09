@@ -1,11 +1,11 @@
-import numpy as np
-import pandas as pd
 import itertools
 
+import numpy as np
+import pandas as pd
+import pytest
+import zipline.testing.fixtures as zp_fixtures
 from zipline.data.fx import DEFAULT_FX_RATE
 from zipline.testing.predicates import assert_equal
-import zipline.testing.fixtures as zp_fixtures
-import pytest
 
 
 class _FXReaderTestCase(zp_fixtures.WithFXRates, zp_fixtures.ZiplineTestCase):
@@ -271,7 +271,7 @@ class HDF5FXReaderTestCase(zp_fixtures.WithTmpDir, _FXReaderTestCase):
         return self.h5_fx_reader
 
 
-class FastGetLocTestCase(zp_fixtures.ZiplineTestCase):
+class TestFastGetLocTestCase:
     def test_fast_get_loc_ffilled(self):
         dts = pd.to_datetime(
             [

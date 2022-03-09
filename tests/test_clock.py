@@ -1,16 +1,15 @@
 from datetime import time
+
 import pandas as pd
-from zipline.utils.calendar_utils import get_calendar, days_at_time
-
-from zipline.gens.sim_engine import (
-    MinuteSimulationClock,
-    SESSION_START,
-    BEFORE_TRADING_START_BAR,
-    BAR,
-    SESSION_END,
-)
-
 import pytest
+from zipline.gens.sim_engine import (
+    BAR,
+    BEFORE_TRADING_START_BAR,
+    SESSION_END,
+    SESSION_START,
+    MinuteSimulationClock,
+)
+from zipline.utils.calendar_utils import days_at_time, get_calendar
 
 
 @pytest.fixture(scope="class")
