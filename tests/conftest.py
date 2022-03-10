@@ -1,5 +1,6 @@
 import warnings
 import os
+import numpy as np
 import pandas as pd
 import pytest
 from zipline.utils.calendar_utils import get_calendar
@@ -16,6 +17,7 @@ from zipline.assets import (
     Future,
 )
 from zipline.assets.continuous_futures import CHAIN_PREDICATES
+from zipline.utils.date_utils import make_utc_aware
 
 
 @pytest.fixture(scope="function")
@@ -179,6 +181,28 @@ def equity_info():
 
 
 @pytest.fixture(scope="class")
+def test_finance_equity_info():
+    """make_equity_info test finance"""
+    T = partial(pd.Timestamp, tz="UTC")
+
+    def asset(sid, symbol, start_date, end_date):
+        return dict(
+            sid=sid,
+            symbol=symbol,
+            start_date=T(start_date),
+            end_date=T(end_date),
+            exchange="NYSE",
+        )
+
+    records = [
+        asset(1, "A", "2006-01-03", "2006-12-29"),
+        asset(2, "B", "2006-01-03", "2006-12-29"),
+        asset(133, "C", "2006-01-03", "2006-12-29"),
+    ]
+    return pd.DataFrame.from_records(records)
+
+
+@pytest.fixture(scope="class")
 def set_test_vectorized_symbol_lookup(request, sql_db_class, equity_info):
     ASSET_FINDER_COUNTRY_CODE = "??"
 
@@ -252,4 +276,144 @@ def set_test_futures(request, sql_db_class, futures_info):
         root_symbols=None,
         equity_supplementary_mappings=None,
     )
+    request.cls.asset_finder = AssetFinder(sql_db_class)
+
+
+@pytest.fixture(scope="class")
+def set_test_finance(request, sql_db_class, test_finance_equity_info):
+    ASSET_FINDER_COUNTRY_CODE = "??"
+
+    equities = test_finance_equity_info
+    exchange_names = [df["exchange"] for df in (equities,) if df is not None]
+    if exchange_names:
+        exchanges = pd.DataFrame(
+            {
+                "exchange": pd.concat(exchange_names).unique(),
+                "country_code": ASSET_FINDER_COUNTRY_CODE,
+            }
+        )
+
+    AssetDBWriter(sql_db_class).write(
+        equities=equities,
+        futures=None,
+        exchanges=exchanges,
+        root_symbols=None,
+        equity_supplementary_mappings=None,
+    )
+
+    request.cls.asset_finder = AssetFinder(sql_db_class)
+
+
+@pytest.fixture(scope="class")
+def set_test_ordered_futures_contracts(request, sql_db_class):
+    ASSET_FINDER_COUNTRY_CODE = "??"
+
+    roots_symbols = pd.DataFrame(
+        {
+            "root_symbol": ["FO", "BA", "BZ"],
+            "root_symbol_id": [1, 2, 3],
+            "exchange": ["CMES", "CMES", "CMES"],
+        }
+    )
+
+    fo_frame = pd.DataFrame(
+        {
+            "root_symbol": ["FO"] * 4,
+            "asset_name": ["Foo"] * 4,
+            "symbol": ["FOF16", "FOG16", "FOH16", "FOJ16"],
+            "sid": range(1, 5),
+            "start_date": pd.date_range("2015-01-01", periods=4, tz="UTC"),
+            "end_date": pd.date_range("2016-01-01", periods=4, tz="UTC"),
+            "notice_date": pd.date_range("2016-01-01", periods=4, tz="UTC"),
+            "expiration_date": pd.date_range("2016-01-01", periods=4, tz="UTC"),
+            "auto_close_date": pd.date_range("2016-01-01", periods=4, tz="UTC"),
+            "tick_size": [0.001] * 4,
+            "multiplier": [1000.0] * 4,
+            "exchange": ["CMES"] * 4,
+        }
+    )
+    # BA is set up to test a quarterly roll, to test Eurodollar-like
+    # behavior
+    # The roll should go from BAH16 -> BAM16
+    ba_frame = pd.DataFrame(
+        {
+            "root_symbol": ["BA"] * 3,
+            "asset_name": ["Bar"] * 3,
+            "symbol": ["BAF16", "BAG16", "BAH16"],
+            "sid": range(5, 8),
+            "start_date": pd.date_range("2015-01-01", periods=3, tz="UTC"),
+            "end_date": pd.date_range("2016-01-01", periods=3, tz="UTC"),
+            "notice_date": pd.date_range("2016-01-01", periods=3, tz="UTC"),
+            "expiration_date": pd.date_range("2016-01-01", periods=3, tz="UTC"),
+            "auto_close_date": pd.date_range("2016-01-01", periods=3, tz="UTC"),
+            "tick_size": [0.001] * 3,
+            "multiplier": [1000.0] * 3,
+            "exchange": ["CMES"] * 3,
+        }
+    )
+    # BZ is set up to test the case where the first contract in a chain has
+    # an auto close date before its start date. It also tests the case
+    # where a contract in the chain has a start date after the auto close
+    # date of the previous contract, leaving a gap with no active contract.
+    bz_frame = pd.DataFrame(
+        {
+            "root_symbol": ["BZ"] * 4,
+            "asset_name": ["Baz"] * 4,
+            "symbol": ["BZF15", "BZG15", "BZH15", "BZJ16"],
+            "sid": range(8, 12),
+            "start_date": [
+                pd.Timestamp("2015-01-02", tz="UTC"),
+                pd.Timestamp("2015-01-03", tz="UTC"),
+                pd.Timestamp("2015-02-23", tz="UTC"),
+                pd.Timestamp("2015-02-24", tz="UTC"),
+            ],
+            "end_date": pd.date_range(
+                "2015-02-01",
+                periods=4,
+                freq="MS",
+                tz="UTC",
+            ),
+            "notice_date": [
+                pd.Timestamp("2014-12-31", tz="UTC"),
+                pd.Timestamp("2015-02-18", tz="UTC"),
+                pd.Timestamp("2015-03-18", tz="UTC"),
+                pd.Timestamp("2015-04-17", tz="UTC"),
+            ],
+            "expiration_date": pd.date_range(
+                "2015-02-01",
+                periods=4,
+                freq="MS",
+                tz="UTC",
+            ),
+            "auto_close_date": [
+                pd.Timestamp("2014-12-29", tz="UTC"),
+                pd.Timestamp("2015-02-16", tz="UTC"),
+                pd.Timestamp("2015-03-16", tz="UTC"),
+                pd.Timestamp("2015-04-15", tz="UTC"),
+            ],
+            "tick_size": [0.001] * 4,
+            "multiplier": [1000.0] * 4,
+            "exchange": ["CMES"] * 4,
+        }
+    )
+
+    futures = pd.concat([fo_frame, ba_frame, bz_frame])
+
+    exchange_names = [df["exchange"] for df in (futures,) if df is not None]
+    if exchange_names:
+        exchanges = pd.DataFrame(
+            {
+                "exchange": pd.concat(exchange_names).unique(),
+                "country_code": ASSET_FINDER_COUNTRY_CODE,
+            }
+        )
+
+    AssetDBWriter(sql_db_class).write(
+        equities=None,
+        futures=futures,
+        exchanges=exchanges,
+        root_symbols=roots_symbols,
+        equity_supplementary_mappings=None,
+    )
+
     request.cls.asset_finder = AssetFinder(sql_db_class)

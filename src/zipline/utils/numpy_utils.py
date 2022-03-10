@@ -27,8 +27,9 @@ from numpy import (
 )
 from numpy.lib.stride_tricks import as_strided
 from toolz import flip
+from packaging.version import Version
 
-numpy_version = StrictVersion(np.__version__)
+numpy_version = Version(np.__version__)
 
 uint8_dtype = dtype("uint8")
 bool_dtype = dtype("bool")
