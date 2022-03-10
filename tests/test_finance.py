@@ -16,31 +16,28 @@
 """
 Tests for the zipline.finance package
 """
-from datetime import datetime, timedelta
 import os
+from datetime import datetime, timedelta
 
 import numpy as np
 import pandas as pd
+import pytest
 import pytz
-from testfixtures import TempDirectory
-
-from zipline.finance.blotter.simulation_blotter import SimulationBlotter
-from zipline.finance.execution import MarketOrder, LimitOrder
-from zipline.finance.metrics import MetricsTracker, load as load_metrics_set
-from zipline.finance.trading import SimulationParameters
-from zipline.data.bcolz_daily_bars import (
-    BcolzDailyBarReader,
-    BcolzDailyBarWriter,
-)
-from zipline.data.minute_bars import BcolzMinuteBarReader
-from zipline.data.data_portal import DataPortal
-from zipline.finance.slippage import FixedSlippage, FixedBasisPointsSlippage
-from zipline.finance.asset_restrictions import NoRestrictions
-from zipline.protocol import BarData
-from zipline.testing import write_bcolz_minute_data
 import zipline.testing.fixtures as zf
 import zipline.utils.factory as factory
-import pytest
+from testfixtures import TempDirectory
+from zipline.data.bcolz_daily_bars import BcolzDailyBarReader, BcolzDailyBarWriter
+from zipline.data.data_portal import DataPortal
+from zipline.data.minute_bars import BcolzMinuteBarReader
+from zipline.finance.asset_restrictions import NoRestrictions
+from zipline.finance.blotter.simulation_blotter import SimulationBlotter
+from zipline.finance.execution import LimitOrder, MarketOrder
+from zipline.finance.metrics import MetricsTracker
+from zipline.finance.metrics import load as load_metrics_set
+from zipline.finance.slippage import FixedBasisPointsSlippage, FixedSlippage
+from zipline.finance.trading import SimulationParameters
+from zipline.protocol import BarData
+from zipline.testing import write_bcolz_minute_data
 
 DEFAULT_TIMEOUT = 15  # seconds
 EXTENDED_TIMEOUT = 90
@@ -329,7 +326,7 @@ class FinanceTestCase(zf.WithAssetFinder, zf.WithTradingCalendars, zf.ZiplineTes
             for i in range(order_count):
                 order = order_list[i]
                 assert order.asset == asset1
-                assert order.amount == order_amount * alternator ** i
+                assert order.amount == order_amount * alternator**i
 
             if complete_fill:
                 assert len(transactions) == len(order_list)
@@ -393,7 +390,8 @@ class FinanceTestCase(zf.WithAssetFinder, zf.WithTradingCalendars, zf.ZiplineTes
         assert 2 == asset2_order.asset
 
 
-class SimParamsTestCase(zf.WithTradingCalendars, zf.ZiplineTestCase):
+@pytest.mark.usefixtures("with_trading_calendars")
+class TestSimulationParameters:
     """
     Tests for date management utilities in zipline.finance.trading.
     """
