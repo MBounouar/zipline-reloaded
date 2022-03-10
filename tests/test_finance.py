@@ -23,7 +23,6 @@ import numpy as np
 import pandas as pd
 import pytest
 import pytz
-import zipline.testing.fixtures as zf
 import zipline.utils.factory as factory
 from testfixtures import TempDirectory
 from zipline.data.bcolz_daily_bars import BcolzDailyBarReader, BcolzDailyBarWriter
@@ -45,21 +44,16 @@ EXTENDED_TIMEOUT = 90
 _multiprocess_can_split_ = False
 
 
-class FinanceTestCase(zf.WithAssetFinder, zf.WithTradingCalendars, zf.ZiplineTestCase):
-    ASSET_FINDER_EQUITY_SIDS = 1, 2, 133
-    start = START_DATE = pd.Timestamp("2006-01-01", tz="utc")
-    end = END_DATE = pd.Timestamp("2006-12-31", tz="utc")
-
-    def init_instance_fixtures(self):
-        super(FinanceTestCase, self).init_instance_fixtures()
-        self.zipline_test_config = {"sid": 133}
+@pytest.mark.usefixtures("set_test_finance", "with_trading_calendars")
+class TestFinance:
+    start = pd.Timestamp("2006-01-01", tz="utc")
+    end = pd.Timestamp("2006-12-31", tz="utc")
 
     # TODO: write tests for short sales
     # TODO: write a test to do massive buying or shorting.
 
     @pytest.mark.timeout(DEFAULT_TIMEOUT)
     def test_partially_filled_orders(self):
-
         # create a scenario where order size and trade size are equal
         # so that orders must be spread out over several trades.
         params = {
