@@ -12,39 +12,33 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import re
+
 import logbook
 import numpy as np
 import pandas as pd
+import pytest
 from pandas.testing import assert_series_equal
-
 from zipline.data.data_portal import DataPortal
 from zipline.errors import (
     BenchmarkAssetNotAvailableTooEarly,
     BenchmarkAssetNotAvailableTooLate,
     InvalidBenchmarkAsset,
 )
-
 from zipline.sources.benchmark_source import BenchmarkSource
-from zipline.utils.run_algo import BenchmarkSpec
-
 from zipline.testing import (
     MockDailyBarReader,
     create_minute_bar_data,
-    parameter_space,
     tmp_bcolz_equity_minute_bar_reader,
 )
-from zipline.testing.predicates import assert_equal
 from zipline.testing.fixtures import (
-    WithAssetFinder,
     WithDataPortal,
     WithSimParams,
-    WithTmpDir,
     WithTradingCalendars,
     ZiplineTestCase,
 )
-from zipline.testing.core import make_test_handler
-import pytest
-import re
+from zipline.testing.predicates import assert_equal
+from zipline.utils.run_algo import BenchmarkSpec
 
 
 class TestBenchmark(
@@ -241,67 +235,36 @@ class TestBenchmark(
             )
 
 
-class BenchmarkSpecTestCase(WithTmpDir, WithAssetFinder, ZiplineTestCase):
-    @classmethod
-    def init_class_fixtures(cls):
-        super(BenchmarkSpecTestCase, cls).init_class_fixtures()
+@pytest.mark.usefixtures("set_test_benchmark_spec")
+class TestBenchmarkSpec:
+    # self.log_handler = self.enter_instance_context(make_test_handler(self))
 
-        zero_returns_index = pd.date_range(
-            cls.START_DATE,
-            cls.END_DATE,
-            freq="D",
-            tz="utc",
-        )
-        cls.zero_returns = pd.Series(index=zero_returns_index, data=0.0)
-
-    def init_instance_fixtures(self):
-        super(BenchmarkSpecTestCase, self).init_instance_fixtures()
-        self.log_handler = self.enter_instance_context(make_test_handler(self))
-
-    @classmethod
-    def make_equity_info(cls):
-        return pd.DataFrame.from_dict(
-            {
-                1: {
-                    "symbol": "A",
-                    "start_date": cls.START_DATE,
-                    "end_date": cls.END_DATE + pd.Timedelta(days=1),
-                    "exchange": "TEST",
-                },
-                2: {
-                    "symbol": "B",
-                    "start_date": cls.START_DATE,
-                    "end_date": cls.END_DATE + pd.Timedelta(days=1),
-                    "exchange": "TEST",
-                },
-            },
-            orient="index",
-        )
-
-    def logs_at_level(self, level):
-        return [r.message for r in self.log_handler.records if r.level == level]
+    def logs_at_level(self, log_handler, level):
+        return [r.message for r in log_handler.records if r.level == level]
 
     def resolve_spec(self, spec):
         return spec.resolve(self.asset_finder, self.START_DATE, self.END_DATE)
 
-    def test_no_benchmark(self):
+    def test_no_benchmark(self, logbook_activation_strategy):
         """Test running with no benchmark provided.
 
         We should have no benchmark sid and have a returns series of all zeros.
         """
-        spec = BenchmarkSpec.from_cli_params(
-            no_benchmark=False,
-            benchmark_sid=None,
-            benchmark_symbol=None,
-            benchmark_file=None,
-        )
 
-        sid, returns = self.resolve_spec(spec)
+        with logbook_activation_strategy(logbook.TestHandler()) as log_handler:
+            spec = BenchmarkSpec.from_cli_params(
+                no_benchmark=False,
+                benchmark_sid=None,
+                benchmark_symbol=None,
+                benchmark_file=None,
+            )
+
+            sid, returns = self.resolve_spec(spec)
 
         assert sid is None
         assert returns is None
 
-        warnings = self.logs_at_level(logbook.WARNING)
+        warnings = self.logs_at_level(log_handler, logbook.WARNING)
         expected = [
             "No benchmark configured. Assuming algorithm calls set_benchmark.",
             "Pass --benchmark-sid, --benchmark-symbol, or --benchmark-file to set a source of benchmark returns.",  # noqa
@@ -309,67 +272,70 @@ class BenchmarkSpecTestCase(WithTmpDir, WithAssetFinder, ZiplineTestCase):
         ]
         assert_equal(warnings, expected)
 
-    def test_no_benchmark_explicitly_disabled(self):
+    def test_no_benchmark_explicitly_disabled(self, logbook_activation_strategy):
         """Test running with no benchmark provided, with no_benchmark flag."""
-        spec = BenchmarkSpec.from_cli_params(
-            no_benchmark=True,
-            benchmark_sid=None,
-            benchmark_symbol=None,
-            benchmark_file=None,
-        )
+        with logbook_activation_strategy(logbook.TestHandler()) as log_handler:
+            spec = BenchmarkSpec.from_cli_params(
+                no_benchmark=True,
+                benchmark_sid=None,
+                benchmark_symbol=None,
+                benchmark_file=None,
+            )
 
-        sid, returns = self.resolve_spec(spec)
+            sid, returns = self.resolve_spec(spec)
 
         assert sid is None
         assert_series_equal(returns, self.zero_returns)
 
-        warnings = self.logs_at_level(logbook.WARNING)
+        warnings = self.logs_at_level(log_handler, logbook.WARNING)
         expected = []
         assert_equal(warnings, expected)
 
-    @parameter_space(case=[("A", 1), ("B", 2)])
-    def test_benchmark_symbol(self, case):
+    @pytest.mark.parametrize("case", [("A", 1), ("B", 2)])
+    def test_benchmark_symbol(self, case, logbook_activation_strategy):
         """Test running with no benchmark provided, with no_benchmark flag."""
         symbol, expected_sid = case
 
-        spec = BenchmarkSpec.from_cli_params(
-            no_benchmark=False,
-            benchmark_sid=None,
-            benchmark_symbol=symbol,
-            benchmark_file=None,
-        )
+        with logbook_activation_strategy(logbook.TestHandler()) as log_handler:
+            spec = BenchmarkSpec.from_cli_params(
+                no_benchmark=False,
+                benchmark_sid=None,
+                benchmark_symbol=symbol,
+                benchmark_file=None,
+            )
 
-        sid, returns = self.resolve_spec(spec)
+            sid, returns = self.resolve_spec(spec)
 
         assert_equal(sid, expected_sid)
         assert returns is None
 
-        warnings = self.logs_at_level(logbook.WARNING)
+        warnings = self.logs_at_level(log_handler, logbook.WARNING)
         expected = []
         assert_equal(warnings, expected)
 
-    @parameter_space(input_sid=[1, 2])
-    def test_benchmark_sid(self, input_sid):
+    @pytest.mark.parametrize("input_sid", [1, 2])
+    def test_benchmark_sid(self, input_sid, logbook_activation_strategy):
         """Test running with no benchmark provided, with no_benchmark flag."""
-        spec = BenchmarkSpec.from_cli_params(
-            no_benchmark=False,
-            benchmark_sid=input_sid,
-            benchmark_symbol=None,
-            benchmark_file=None,
-        )
+        with logbook_activation_strategy(logbook.TestHandler()) as log_handler:
+            spec = BenchmarkSpec.from_cli_params(
+                no_benchmark=False,
+                benchmark_sid=input_sid,
+                benchmark_symbol=None,
+                benchmark_file=None,
+            )
 
-        sid, returns = self.resolve_spec(spec)
+            sid, returns = self.resolve_spec(spec)
 
         assert_equal(sid, input_sid)
         assert returns is None
 
-        warnings = self.logs_at_level(logbook.WARNING)
+        warnings = self.logs_at_level(log_handler, logbook.WARNING)
         expected = []
         assert_equal(warnings, expected)
 
-    def test_benchmark_file(self):
+    def test_benchmark_file(self, tmp_path, logbook_activation_strategy):
         """Test running with a benchmark file."""
-        csv_file_path = self.tmpdir.getpath("b.csv")
+        csv_file_path = tmp_path / "b.csv"
         with open(csv_file_path, "w") as csv_file:
             csv_file.write(
                 "date,return\n"
@@ -380,14 +346,15 @@ class BenchmarkSpecTestCase(WithTmpDir, WithAssetFinder, ZiplineTestCase):
                 "2020-01-09 00:00:00+00:00,6.375\n"
             )
 
-        spec = BenchmarkSpec.from_cli_params(
-            no_benchmark=False,
-            benchmark_sid=None,
-            benchmark_symbol=None,
-            benchmark_file=csv_file_path,
-        )
+        with logbook_activation_strategy(logbook.TestHandler()) as log_handler:
+            spec = BenchmarkSpec.from_cli_params(
+                no_benchmark=False,
+                benchmark_sid=None,
+                benchmark_symbol=None,
+                benchmark_file=csv_file_path,
+            )
 
-        sid, returns = self.resolve_spec(spec)
+            sid, returns = self.resolve_spec(spec)
 
         assert sid is None
 
@@ -400,6 +367,6 @@ class BenchmarkSpecTestCase(WithTmpDir, WithAssetFinder, ZiplineTestCase):
 
         assert_series_equal(returns, expected_returns, check_names=False)
 
-        warnings = self.logs_at_level(logbook.WARNING)
+        warnings = self.logs_at_level(log_handler, logbook.WARNING)
         expected = []
         assert_equal(warnings, expected)
