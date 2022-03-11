@@ -305,6 +305,61 @@ def set_test_finance(request, sql_db_class, test_finance_equity_info):
 
 
 @pytest.fixture(scope="class")
+def set_test_benchmark_spec(request, sql_db_class):
+    ASSET_FINDER_COUNTRY_CODE = "??"
+    START_DATE = pd.Timestamp("2006-01-03", tz="utc")
+    END_DATE = pd.Timestamp("2006-12-29", tz="utc")
+    request.cls.START_DATE = START_DATE
+    request.cls.END_DATE = END_DATE
+
+    zero_returns_index = pd.date_range(
+        request.cls.START_DATE,
+        request.cls.END_DATE,
+        freq="D",
+        tz="utc",
+    )
+    request.cls.zero_returns = pd.Series(index=zero_returns_index, data=0.0)
+
+    equities = pd.DataFrame.from_dict(
+        {
+            1: {
+                "symbol": "A",
+                "start_date": START_DATE,
+                "end_date": END_DATE + pd.Timedelta(days=1),
+                "exchange": "TEST",
+            },
+            2: {
+                "symbol": "B",
+                "start_date": START_DATE,
+                "end_date": END_DATE + pd.Timedelta(days=1),
+                "exchange": "TEST",
+            },
+        },
+        orient="index",
+    )
+
+    equities = equities
+    exchange_names = [df["exchange"] for df in (equities,) if df is not None]
+    if exchange_names:
+        exchanges = pd.DataFrame(
+            {
+                "exchange": pd.concat(exchange_names).unique(),
+                "country_code": ASSET_FINDER_COUNTRY_CODE,
+            }
+        )
+
+    AssetDBWriter(sql_db_class).write(
+        equities=equities,
+        futures=None,
+        exchanges=exchanges,
+        root_symbols=None,
+        equity_supplementary_mappings=None,
+    )
+
+    request.cls.asset_finder = AssetFinder(sql_db_class)
+
+
+@pytest.fixture(scope="class")
 def set_test_ordered_futures_contracts(request, sql_db_class):
     ASSET_FINDER_COUNTRY_CODE = "??"
 
@@ -417,3 +472,53 @@ def set_test_ordered_futures_contracts(request, sql_db_class):
     )
 
     request.cls.asset_finder = AssetFinder(sql_db_class)
+
+
+@pytest.fixture(scope="class")
+def set_test_adjustments(request, tmp_path_factory):
+    request.cls.db_path = str(tmp_path_factory.mktemp("tmp") / "adjustments.db")
+
+
+class ActivationStrategy(object):
+    def __init__(self, handler):
+        super(ActivationStrategy, self).__init__()
+        self.handler = handler
+
+    def activate(self):
+        raise NotImplementedError()  # pragma: no cover
+
+    def deactivate(self):
+        raise NotImplementedError()  # pragma: no cover
+
+    def __enter__(self):
+        self.activate()
+        return self.handler
+
+    def __exit__(self, *_):
+        self.deactivate()
+
+
+class ContextEnteringStrategy:
+    def __init__(self, handler):
+        self.handler = handler
+
+    def activate(self):
+        self.handler.__enter__()
+
+    def deactivate(self):
+        self.handler.__exit__(None, None, None)
+
+    def __enter__(self):
+        self.activate()
+        return self.handler
+
+    def __exit__(self, *_):
+        self.deactivate()
+
+
+# @pytest.fixture(params=[ContextEnteringStrategy])
+# def logbook_activation_strategy(request=[ContexEnteringStrategy]):
+# return request.param
+@pytest.fixture()
+def logbook_activation_strategy():
+    return ContextEnteringStrategy
