@@ -479,46 +479,26 @@ def set_test_adjustments(request, tmp_path_factory):
     request.cls.db_path = str(tmp_path_factory.mktemp("tmp") / "adjustments.db")
 
 
-class ActivationStrategy(object):
-    def __init__(self, handler):
-        super(ActivationStrategy, self).__init__()
-        self.handler = handler
-
-    def activate(self):
-        raise NotImplementedError()  # pragma: no cover
-
-    def deactivate(self):
-        raise NotImplementedError()  # pragma: no cover
-
-    def __enter__(self):
-        self.activate()
-        return self.handler
-
-    def __exit__(self, *_):
-        self.deactivate()
-
-
-class ContextEnteringStrategy:
-    def __init__(self, handler):
-        self.handler = handler
-
-    def activate(self):
-        self.handler.__enter__()
-
-    def deactivate(self):
-        self.handler.__exit__(None, None, None)
-
-    def __enter__(self):
-        self.activate()
-        return self.handler
-
-    def __exit__(self, *_):
-        self.deactivate()
-
-
 # @pytest.fixture(params=[ContextEnteringStrategy])
 # def logbook_activation_strategy(request=[ContexEnteringStrategy]):
 # return request.param
 @pytest.fixture()
 def logbook_activation_strategy():
+    class ContextEnteringStrategy:
+        def __init__(self, handler):
+            self.handler = handler
+
+        def activate(self):
+            self.handler.__enter__()
+
+        def deactivate(self):
+            self.handler.__exit__(None, None, None)
+
+        def __enter__(self):
+            self.activate()
+            return self.handler
+
+        def __exit__(self, *_):
+            self.deactivate()
+
     return ContextEnteringStrategy
