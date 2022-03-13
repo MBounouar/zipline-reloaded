@@ -1160,7 +1160,7 @@ class TestAssetFinder:
                         tile_count,
                     ),
                     index=dates,
-                    columns=pd.Int64Index(permuted_sids),
+                    columns=pd.Index(permuted_sids, dtype="int64"),
                 )
                 result = finder.lifetimes(
                     dates,
