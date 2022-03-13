@@ -1,8 +1,8 @@
 from textwrap import dedent
 
+import pandas as pd
+import pytest
 from parameterized import parameterized
-from pandas import DataFrame
-
 from zipline.assets import Equity, Future
 from zipline.errors import IncompatibleCommissionModel
 from zipline.finance.commission import (
@@ -18,29 +18,11 @@ from zipline.finance.commission import (
 from zipline.finance.order import Order
 from zipline.finance.transaction import Transaction
 from zipline.testing import ZiplineTestCase
-from zipline.testing.fixtures import WithAssetFinder, WithMakeAlgo
-import pytest
+from zipline.testing.fixtures import WithMakeAlgo
 
 
-class CommissionUnitTests(WithAssetFinder, ZiplineTestCase):
-    ASSET_FINDER_EQUITY_SIDS = 1, 2
-
-    @classmethod
-    def make_futures_info(cls):
-        return DataFrame(
-            {
-                "sid": [1000, 1001],
-                "root_symbol": ["CL", "FV"],
-                "symbol": ["CLF07", "FVF07"],
-                "start_date": [cls.START_DATE, cls.START_DATE],
-                "end_date": [cls.END_DATE, cls.END_DATE],
-                "notice_date": [cls.END_DATE, cls.END_DATE],
-                "expiration_date": [cls.END_DATE, cls.END_DATE],
-                "multiplier": [500, 500],
-                "exchange": ["CMES", "CMES"],
-            }
-        )
-
+@pytest.mark.usefixtures("set_test_commission_unit")
+class TestCommissionUnit:
     def generate_order_and_txns(self, sid, order_amount, fill_amounts):
         asset1 = self.asset_finder.retrieve_asset(sid)
 
@@ -341,7 +323,7 @@ class CommissionAlgorithmTests(WithMakeAlgo, ZiplineTestCase):
 
     @classmethod
     def make_futures_info(cls):
-        return DataFrame(
+        return pd.DataFrame(
             {
                 "sid": [1000, 1001],
                 "root_symbol": ["CL", "FV"],
@@ -362,7 +344,7 @@ class CommissionAlgorithmTests(WithMakeAlgo, ZiplineTestCase):
             cls.END_DATE,
         )
         for sid in sids:
-            yield sid, DataFrame(
+            yield sid, pd.DataFrame(
                 index=sessions,
                 data={
                     "open": 10.0,

@@ -18,7 +18,7 @@ Tests for the zipline.finance package
 """
 import os
 from datetime import datetime, timedelta
-
+from functools import partial
 import numpy as np
 import pandas as pd
 import pytest
@@ -42,6 +42,41 @@ DEFAULT_TIMEOUT = 15  # seconds
 EXTENDED_TIMEOUT = 90
 
 _multiprocess_can_split_ = False
+
+
+@pytest.fixture(scope="class")
+def set_test_finance(request, with_asset_finder):
+    ASSET_FINDER_COUNTRY_CODE = "??"
+
+    T = partial(pd.Timestamp, tz="UTC")
+
+    def asset(sid, symbol, start_date, end_date):
+        return dict(
+            sid=sid,
+            symbol=symbol,
+            start_date=T(start_date),
+            end_date=T(end_date),
+            exchange="NYSE",
+        )
+
+    records = [
+        asset(1, "A", "2006-01-03", "2006-12-29"),
+        asset(2, "B", "2006-01-03", "2006-12-29"),
+        asset(133, "C", "2006-01-03", "2006-12-29"),
+    ]
+    equities = pd.DataFrame.from_records(records)
+    exchange_names = [df["exchange"] for df in (equities,) if df is not None]
+    if exchange_names:
+        exchanges = pd.DataFrame(
+            {
+                "exchange": pd.concat(exchange_names).unique(),
+                "country_code": ASSET_FINDER_COUNTRY_CODE,
+            }
+        )
+
+    request.cls.asset_finder = with_asset_finder(
+        **dict(equities=equities, exchanges=exchanges)
+    )
 
 
 @pytest.mark.usefixtures("set_test_finance", "with_trading_calendars")

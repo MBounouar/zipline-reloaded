@@ -1,14 +1,7 @@
-import pytest
-
-# from abc import abstractmethod, ABCMeta
 from unittest import TestCase
 
-from zipline.utils.final import (
-    FinalMeta,
-    final,
-)
-
-# from zipline.utils.metautils_ import compose_types
+import pytest
+from zipline.utils.final import FinalMeta, final
 
 
 class FinalMetaTestCase(TestCase):
