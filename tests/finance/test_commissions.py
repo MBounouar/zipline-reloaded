@@ -21,6 +21,59 @@ from zipline.testing import ZiplineTestCase
 from zipline.testing.fixtures import WithMakeAlgo
 
 
+@pytest.fixture(scope="class")
+def set_test_commission_unit(request, with_asset_finder):
+    ASSET_FINDER_COUNTRY_CODE = "??"
+
+    START_DATE = pd.Timestamp("2006-01-03", tz="utc")
+    END_DATE = pd.Timestamp("2006-12-29", tz="utc")
+
+    equities = pd.DataFrame.from_dict(
+        {
+            1: {
+                "symbol": "A",
+                "start_date": START_DATE,
+                "end_date": END_DATE + pd.Timedelta(days=1),
+                "exchange": "TEST",
+            },
+            2: {
+                "symbol": "B",
+                "start_date": START_DATE,
+                "end_date": END_DATE + pd.Timedelta(days=1),
+                "exchange": "TEST",
+            },
+        },
+        orient="index",
+    )
+
+    futures = pd.DataFrame(
+        {
+            "sid": [1000, 1001],
+            "root_symbol": ["CL", "FV"],
+            "symbol": ["CLF07", "FVF07"],
+            "start_date": [START_DATE, START_DATE],
+            "end_date": [END_DATE, END_DATE],
+            "notice_date": [END_DATE, END_DATE],
+            "expiration_date": [END_DATE, END_DATE],
+            "multiplier": [500, 500],
+            "exchange": ["CMES", "CMES"],
+        }
+    )
+
+    exchange_names = [df["exchange"] for df in (futures, equities) if df is not None]
+    if exchange_names:
+        exchanges = pd.DataFrame(
+            {
+                "exchange": pd.concat(exchange_names).unique(),
+                "country_code": ASSET_FINDER_COUNTRY_CODE,
+            }
+        )
+
+    request.cls.asset_finder = with_asset_finder(
+        **dict(equities=equities, futures=futures, exchanges=exchanges)
+    )
+
+
 @pytest.mark.usefixtures("set_test_commission_unit")
 class TestCommissionUnit:
     def generate_order_and_txns(self, sid, order_amount, fill_amounts):

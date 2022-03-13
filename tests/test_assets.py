@@ -402,14 +402,13 @@ def set_test_vectorized_symbol_lookup(request, with_asset_finder):
     )
 
 
-# @pytest.fixture(scope="function")
-# def set_test_asset_finder(
-#     sql_db,
-#     request,
-# ):
-#     AssetDBWriter(sql_db).write(None)
-#     request.cls.write_ass = AssetDBWriter(sql_db)
-#     request.cls.asset_finder = AssetFinder(sql_db)
+@pytest.fixture(scope="function")
+def set_test_write(request, tmp_path):
+    request.cls.assets_db_path = path = os.path.join(
+        str(tmp_path),
+        "assets.db",
+    )
+    request.cls.writer = AssetDBWriter(path)
 
 
 @pytest.fixture(scope="function")
@@ -1523,7 +1522,7 @@ class TestAssetFinder:
             assert str(e) == "No {plural} found for sids: [1, 2].".format(plural=plural)
 
 
-@pytest.mark.usefixtures("set_test_asset_finder", "with_trading_calendars")
+@pytest.mark.usefixtures("with_trading_calendars")
 class TestAssetFinderMultipleCountries:
     def write_assets(self, **kwargs):
         self._asset_writer.write(**kwargs)
@@ -1532,7 +1531,7 @@ class TestAssetFinderMultipleCountries:
     def country_code(n):
         return "A" + chr(ord("A") + n)
 
-    def test_lookup_symbol_delimited(self):
+    def test_lookup_symbol_delimited(self, asset_finder):
         as_of = pd.Timestamp("2013-01-01", tz="UTC")
         num_assets = 3
         sids = list(range(num_assets))
@@ -1556,8 +1555,7 @@ class TestAssetFinderMultipleCountries:
                 "country_code": [self.country_code(n) for n in range(num_assets)],
             }
         )
-        self.write_assets(equities=frame, exchanges=exchanges)
-        finder = self.asset_finder
+        finder = asset_finder(equities=frame, exchanges=exchanges)
         assets = finder.retrieve_all(sids)
 
         def shouldnt_resolve(ticker):
@@ -1595,7 +1593,7 @@ class TestAssetFinderMultipleCountries:
                         n
                     )
 
-    def test_lookup_symbol_fuzzy(self):
+    def test_lookup_symbol_fuzzy(self, asset_finder):
         num_countries = 3
         metadata = pd.DataFrame.from_records(
             [
@@ -1610,8 +1608,7 @@ class TestAssetFinderMultipleCountries:
                 "country_code": list(map(self.country_code, range(num_countries))),
             }
         )
-        self.write_assets(equities=metadata, exchanges=exchanges)
-        finder = self.asset_finder
+        finder = asset_finder(equities=metadata, exchanges=exchanges)
         dt = pd.Timestamp("2013-01-01", tz="UTC")
 
         # Try combos of looking up PRTYHRD with and without a time or fuzzy
@@ -1673,7 +1670,7 @@ class TestAssetFinderMultipleCountries:
             check_sid(n * 3 + 1, "BRKA", self.country_code(n))
             check_sid(n * 3 + 2, "BRK_A", self.country_code(n))
 
-    def test_lookup_symbol_change_ticker(self):
+    def test_lookup_symbol_change_ticker(self, asset_finder):
         T = partial(pd.Timestamp, tz="utc")
         num_countries = 3
         metadata = pd.DataFrame.from_records(
@@ -1718,8 +1715,7 @@ class TestAssetFinderMultipleCountries:
                 "country_code": [self.country_code(n) for n in range(num_countries)],
             }
         )
-        self.write_assets(equities=metadata, exchanges=exchanges)
-        finder = self.asset_finder
+        finder = asset_finder(equities=metadata, exchanges=exchanges)
 
         def assert_doesnt_resolve(symbol, as_of_date):
             # check across all countries
@@ -1822,7 +1818,7 @@ class TestAssetFinderMultipleCountries:
                 expected_name="Asset A",
             )
 
-    def test_lookup_symbol(self):
+    def test_lookup_symbol(self, asset_finder):
         num_countries = 3
         # Incrementing by two so that start and end dates for each
         # generated Asset don't overlap (each Asset's end_date is the
@@ -1847,8 +1843,7 @@ class TestAssetFinderMultipleCountries:
                 "country_code": [self.country_code(n) for n in range(num_countries)],
             }
         )
-        self.write_assets(equities=df, exchanges=exchanges)
-        finder = self.asset_finder
+        finder = asset_finder(equities=df, exchanges=exchanges)
         for _ in range(2):  # Run checks twice to test for caching bugs.
             with pytest.raises(SymbolNotFound):
                 finder.lookup_symbol("NON_EXISTING", dates[0])
@@ -1887,7 +1882,7 @@ class TestAssetFinderMultipleCountries:
                     expected_sid = n * len(dates) + i
                     assert result.sid == expected_sid
 
-    def test_fail_to_write_overlapping_data(self):
+    def test_fail_to_write_overlapping_data(self, asset_finder):
         num_countries = 3
         df = pd.DataFrame.from_records(
             concat(
@@ -1960,9 +1955,9 @@ class TestAssetFinderMultipleCountries:
             )
         )
         with pytest.raises(ValueError, match=re.escape(expected_error_msg)):
-            self.write_assets(equities=df, exchanges=exchanges)
+            asset_finder(equities=df, exchanges=exchanges)
 
-    def test_endless_multiple_resolves(self):
+    def test_endless_multiple_resolves(self, asset_finder):
         """
         Situation:
         1. Asset 1 w/ symbol FOOB changes to FOO_B, and then is delisted.
@@ -2008,8 +2003,7 @@ class TestAssetFinderMultipleCountries:
                 "country_code": [self.country_code(n) for n in range(num_countries)],
             }
         )
-        self.write_assets(equities=df, exchanges=exchanges)
-        finder = self.asset_finder
+        finder = asset_finder(equities=df, exchanges=exchanges)
 
         with pytest.raises(MultipleSymbolsFoundForFuzzySymbol):
             finder.lookup_symbol(

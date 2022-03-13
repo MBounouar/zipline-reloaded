@@ -41,6 +41,55 @@ from zipline.testing.predicates import assert_equal
 from zipline.utils.run_algo import BenchmarkSpec
 
 
+@pytest.fixture(scope="class")
+def set_test_benchmark_spec(request, with_asset_finder):
+    ASSET_FINDER_COUNTRY_CODE = "??"
+    START_DATE = pd.Timestamp("2006-01-03", tz="utc")
+    END_DATE = pd.Timestamp("2006-12-29", tz="utc")
+    request.cls.START_DATE = START_DATE
+    request.cls.END_DATE = END_DATE
+
+    zero_returns_index = pd.date_range(
+        request.cls.START_DATE,
+        request.cls.END_DATE,
+        freq="D",
+        tz="utc",
+    )
+    request.cls.zero_returns = pd.Series(index=zero_returns_index, data=0.0)
+
+    equities = pd.DataFrame.from_dict(
+        {
+            1: {
+                "symbol": "A",
+                "start_date": START_DATE,
+                "end_date": END_DATE + pd.Timedelta(days=1),
+                "exchange": "TEST",
+            },
+            2: {
+                "symbol": "B",
+                "start_date": START_DATE,
+                "end_date": END_DATE + pd.Timedelta(days=1),
+                "exchange": "TEST",
+            },
+        },
+        orient="index",
+    )
+
+    equities = equities
+    exchange_names = [df["exchange"] for df in (equities,) if df is not None]
+    if exchange_names:
+        exchanges = pd.DataFrame(
+            {
+                "exchange": pd.concat(exchange_names).unique(),
+                "country_code": ASSET_FINDER_COUNTRY_CODE,
+            }
+        )
+
+    request.cls.asset_finder = with_asset_finder(
+        **dict(equities=equities, exchanges=exchanges)
+    )
+
+
 class TestBenchmark(
     WithDataPortal, WithSimParams, WithTradingCalendars, ZiplineTestCase
 ):

@@ -16,6 +16,11 @@ from zipline.testing.predicates import (
 nat = pd.Timestamp("nat")
 
 
+@pytest.fixture(scope="class")
+def set_test_adjustments(request, tmp_path_factory):
+    request.cls.db_path = str(tmp_path_factory.mktemp("tmp") / "adjustments.db")
+
+
 @pytest.mark.usefixtures("set_test_adjustments", "with_trading_calendars")
 class TestSQLiteAdjustmentsWriter:
     def writer(self, session_bar_reader):

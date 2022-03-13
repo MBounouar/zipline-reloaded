@@ -31,6 +31,115 @@ import zipline.testing.fixtures as zf
 import pytest
 
 
+@pytest.fixture(scope="class")
+def set_test_ordered_futures_contracts(request, with_asset_finder):
+    ASSET_FINDER_COUNTRY_CODE = "??"
+
+    root_symbols = pd.DataFrame(
+        {
+            "root_symbol": ["FO", "BA", "BZ"],
+            "root_symbol_id": [1, 2, 3],
+            "exchange": ["CMES", "CMES", "CMES"],
+        }
+    )
+
+    fo_frame = pd.DataFrame(
+        {
+            "root_symbol": ["FO"] * 4,
+            "asset_name": ["Foo"] * 4,
+            "symbol": ["FOF16", "FOG16", "FOH16", "FOJ16"],
+            "sid": range(1, 5),
+            "start_date": pd.date_range("2015-01-01", periods=4, tz="UTC"),
+            "end_date": pd.date_range("2016-01-01", periods=4, tz="UTC"),
+            "notice_date": pd.date_range("2016-01-01", periods=4, tz="UTC"),
+            "expiration_date": pd.date_range("2016-01-01", periods=4, tz="UTC"),
+            "auto_close_date": pd.date_range("2016-01-01", periods=4, tz="UTC"),
+            "tick_size": [0.001] * 4,
+            "multiplier": [1000.0] * 4,
+            "exchange": ["CMES"] * 4,
+        }
+    )
+    # BA is set up to test a quarterly roll, to test Eurodollar-like
+    # behavior
+    # The roll should go from BAH16 -> BAM16
+    ba_frame = pd.DataFrame(
+        {
+            "root_symbol": ["BA"] * 3,
+            "asset_name": ["Bar"] * 3,
+            "symbol": ["BAF16", "BAG16", "BAH16"],
+            "sid": range(5, 8),
+            "start_date": pd.date_range("2015-01-01", periods=3, tz="UTC"),
+            "end_date": pd.date_range("2016-01-01", periods=3, tz="UTC"),
+            "notice_date": pd.date_range("2016-01-01", periods=3, tz="UTC"),
+            "expiration_date": pd.date_range("2016-01-01", periods=3, tz="UTC"),
+            "auto_close_date": pd.date_range("2016-01-01", periods=3, tz="UTC"),
+            "tick_size": [0.001] * 3,
+            "multiplier": [1000.0] * 3,
+            "exchange": ["CMES"] * 3,
+        }
+    )
+    # BZ is set up to test the case where the first contract in a chain has
+    # an auto close date before its start date. It also tests the case
+    # where a contract in the chain has a start date after the auto close
+    # date of the previous contract, leaving a gap with no active contract.
+    bz_frame = pd.DataFrame(
+        {
+            "root_symbol": ["BZ"] * 4,
+            "asset_name": ["Baz"] * 4,
+            "symbol": ["BZF15", "BZG15", "BZH15", "BZJ16"],
+            "sid": range(8, 12),
+            "start_date": [
+                pd.Timestamp("2015-01-02", tz="UTC"),
+                pd.Timestamp("2015-01-03", tz="UTC"),
+                pd.Timestamp("2015-02-23", tz="UTC"),
+                pd.Timestamp("2015-02-24", tz="UTC"),
+            ],
+            "end_date": pd.date_range(
+                "2015-02-01",
+                periods=4,
+                freq="MS",
+                tz="UTC",
+            ),
+            "notice_date": [
+                pd.Timestamp("2014-12-31", tz="UTC"),
+                pd.Timestamp("2015-02-18", tz="UTC"),
+                pd.Timestamp("2015-03-18", tz="UTC"),
+                pd.Timestamp("2015-04-17", tz="UTC"),
+            ],
+            "expiration_date": pd.date_range(
+                "2015-02-01",
+                periods=4,
+                freq="MS",
+                tz="UTC",
+            ),
+            "auto_close_date": [
+                pd.Timestamp("2014-12-29", tz="UTC"),
+                pd.Timestamp("2015-02-16", tz="UTC"),
+                pd.Timestamp("2015-03-16", tz="UTC"),
+                pd.Timestamp("2015-04-15", tz="UTC"),
+            ],
+            "tick_size": [0.001] * 4,
+            "multiplier": [1000.0] * 4,
+            "exchange": ["CMES"] * 4,
+        }
+    )
+
+    futures = pd.concat([fo_frame, ba_frame, bz_frame])
+
+    exchange_names = [df["exchange"] for df in (futures,) if df is not None]
+    if exchange_names:
+        exchanges = pd.DataFrame(
+            {
+                "exchange": pd.concat(exchange_names).unique(),
+                "country_code": ASSET_FINDER_COUNTRY_CODE,
+            }
+        )
+
+    request.cls.asset_finder = with_asset_finder(
+        **dict(futures=futures, exchanges=exchanges, root_symbols=root_symbols)
+    )
+
+
 class ContinuousFuturesTestCase(
     zf.WithCreateBarData, zf.WithMakeAlgo, zf.ZiplineTestCase
 ):
