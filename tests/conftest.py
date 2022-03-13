@@ -16,8 +16,6 @@ from zipline.assets import (
     ExchangeInfo,
     Future,
 )
-from zipline.assets.continuous_futures import CHAIN_PREDICATES
-from zipline.utils.date_utils import make_utc_aware
 
 
 @pytest.fixture(scope="function")
@@ -155,8 +153,8 @@ def with_trading_calendars(request):
 
 
 @pytest.fixture(scope="class")
-def equity_info():
-    """make_equity_info"""
+def set_test_vectorized_symbol_lookup(request, with_asset_finder):
+    ASSET_FINDER_COUNTRY_CODE = "??"
     T = partial(pd.Timestamp, tz="UTC")
 
     def asset(sid, symbol, start_date, end_date):
@@ -177,36 +175,8 @@ def equity_info():
         asset(6, "D", "2001-01-02", "2015-01-02"),
         asset(7, "FUZZY", "2001-01-02", "2015-01-02"),
     ]
-    return pd.DataFrame.from_records(records)
+    equities = pd.DataFrame.from_records(records)
 
-
-@pytest.fixture(scope="class")
-def test_finance_equity_info():
-    """make_equity_info test finance"""
-    T = partial(pd.Timestamp, tz="UTC")
-
-    def asset(sid, symbol, start_date, end_date):
-        return dict(
-            sid=sid,
-            symbol=symbol,
-            start_date=T(start_date),
-            end_date=T(end_date),
-            exchange="NYSE",
-        )
-
-    records = [
-        asset(1, "A", "2006-01-03", "2006-12-29"),
-        asset(2, "B", "2006-01-03", "2006-12-29"),
-        asset(133, "C", "2006-01-03", "2006-12-29"),
-    ]
-    return pd.DataFrame.from_records(records)
-
-
-@pytest.fixture(scope="class")
-def set_test_vectorized_symbol_lookup(request, sql_db_class, equity_info):
-    ASSET_FINDER_COUNTRY_CODE = "??"
-
-    equities = equity_info
     exchange_names = [df["exchange"] for df in (equities,) if df is not None]
     if exchange_names:
         exchanges = pd.DataFrame(
@@ -216,20 +186,15 @@ def set_test_vectorized_symbol_lookup(request, sql_db_class, equity_info):
             }
         )
 
-    AssetDBWriter(sql_db_class).write(
-        equities=equities,
-        futures=None,
-        exchanges=exchanges,
-        root_symbols=None,
-        equity_supplementary_mappings=None,
+    request.cls.asset_finder = with_asset_finder(
+        **dict(equities=equities, exchanges=exchanges)
     )
-    request.cls.asset_finder = AssetFinder(sql_db_class)
 
 
 @pytest.fixture(scope="class")
-def futures_info():
-    """make_future_info"""
-    return pd.DataFrame.from_dict(
+def set_test_futures(request, with_asset_finder):
+    ASSET_FINDER_COUNTRY_CODE = "??"
+    futures = pd.DataFrame.from_dict(
         {
             2468: {
                 "symbol": "OMH15",
@@ -254,12 +219,6 @@ def futures_info():
         orient="index",
     )
 
-
-@pytest.fixture(scope="class")
-def set_test_futures(request, sql_db_class, futures_info):
-    ASSET_FINDER_COUNTRY_CODE = "??"
-
-    futures = futures_info
     exchange_names = [df["exchange"] for df in (futures,) if df is not None]
     if exchange_names:
         exchanges = pd.DataFrame(
@@ -269,22 +228,51 @@ def set_test_futures(request, sql_db_class, futures_info):
             }
         )
 
-    AssetDBWriter(sql_db_class).write(
-        equities=None,
-        futures=futures,
-        exchanges=exchanges,
-        root_symbols=None,
-        equity_supplementary_mappings=None,
+    request.cls.asset_finder = with_asset_finder(
+        **dict(futures=futures, exchanges=exchanges)
     )
-    request.cls.asset_finder = AssetFinder(sql_db_class)
 
 
 @pytest.fixture(scope="class")
-def set_test_finance(request, sql_db_class, test_finance_equity_info):
+def set_test_commission_unit(request, with_asset_finder):
     ASSET_FINDER_COUNTRY_CODE = "??"
 
-    equities = test_finance_equity_info
-    exchange_names = [df["exchange"] for df in (equities,) if df is not None]
+    START_DATE = pd.Timestamp("2006-01-03", tz="utc")
+    END_DATE = pd.Timestamp("2006-12-29", tz="utc")
+
+    equities = pd.DataFrame.from_dict(
+        {
+            1: {
+                "symbol": "A",
+                "start_date": START_DATE,
+                "end_date": END_DATE + pd.Timedelta(days=1),
+                "exchange": "TEST",
+            },
+            2: {
+                "symbol": "B",
+                "start_date": START_DATE,
+                "end_date": END_DATE + pd.Timedelta(days=1),
+                "exchange": "TEST",
+            },
+        },
+        orient="index",
+    )
+
+    futures = pd.DataFrame(
+        {
+            "sid": [1000, 1001],
+            "root_symbol": ["CL", "FV"],
+            "symbol": ["CLF07", "FVF07"],
+            "start_date": [START_DATE, START_DATE],
+            "end_date": [END_DATE, END_DATE],
+            "notice_date": [END_DATE, END_DATE],
+            "expiration_date": [END_DATE, END_DATE],
+            "multiplier": [500, 500],
+            "exchange": ["CMES", "CMES"],
+        }
+    )
+
+    exchange_names = [df["exchange"] for df in (futures, equities) if df is not None]
     if exchange_names:
         exchanges = pd.DataFrame(
             {
@@ -293,19 +281,13 @@ def set_test_finance(request, sql_db_class, test_finance_equity_info):
             }
         )
 
-    AssetDBWriter(sql_db_class).write(
-        equities=equities,
-        futures=None,
-        exchanges=exchanges,
-        root_symbols=None,
-        equity_supplementary_mappings=None,
+    request.cls.asset_finder = with_asset_finder(
+        **dict(equities=equities, futures=futures, exchanges=exchanges)
     )
-
-    request.cls.asset_finder = AssetFinder(sql_db_class)
 
 
 @pytest.fixture(scope="class")
-def set_test_benchmark_spec(request, sql_db_class):
+def set_test_benchmark_spec(request, with_asset_finder):
     ASSET_FINDER_COUNTRY_CODE = "??"
     START_DATE = pd.Timestamp("2006-01-03", tz="utc")
     END_DATE = pd.Timestamp("2006-12-29", tz="utc")
@@ -348,22 +330,16 @@ def set_test_benchmark_spec(request, sql_db_class):
             }
         )
 
-    AssetDBWriter(sql_db_class).write(
-        equities=equities,
-        futures=None,
-        exchanges=exchanges,
-        root_symbols=None,
-        equity_supplementary_mappings=None,
+    request.cls.asset_finder = with_asset_finder(
+        **dict(equities=equities, exchanges=exchanges)
     )
-
-    request.cls.asset_finder = AssetFinder(sql_db_class)
 
 
 @pytest.fixture(scope="class")
-def set_test_ordered_futures_contracts(request, sql_db_class):
+def set_test_ordered_futures_contracts(request, with_asset_finder):
     ASSET_FINDER_COUNTRY_CODE = "??"
 
-    roots_symbols = pd.DataFrame(
+    root_symbols = pd.DataFrame(
         {
             "root_symbol": ["FO", "BA", "BZ"],
             "root_symbol_id": [1, 2, 3],
@@ -463,15 +439,9 @@ def set_test_ordered_futures_contracts(request, sql_db_class):
             }
         )
 
-    AssetDBWriter(sql_db_class).write(
-        equities=None,
-        futures=futures,
-        exchanges=exchanges,
-        root_symbols=roots_symbols,
-        equity_supplementary_mappings=None,
+    request.cls.asset_finder = with_asset_finder(
+        **dict(futures=futures, exchanges=exchanges, root_symbols=root_symbols)
     )
-
-    request.cls.asset_finder = AssetFinder(sql_db_class)
 
 
 @pytest.fixture(scope="class")
@@ -479,9 +449,6 @@ def set_test_adjustments(request, tmp_path_factory):
     request.cls.db_path = str(tmp_path_factory.mktemp("tmp") / "adjustments.db")
 
 
-# @pytest.fixture(params=[ContextEnteringStrategy])
-# def logbook_activation_strategy(request=[ContexEnteringStrategy]):
-# return request.param
 @pytest.fixture()
 def logbook_activation_strategy():
     class ContextEnteringStrategy:
@@ -502,3 +469,18 @@ def logbook_activation_strategy():
             self.deactivate()
 
     return ContextEnteringStrategy
+
+
+@pytest.fixture(scope="class")
+def set_test_bundle_core(request, tmpdir_factory):
+
+    request.cls.environ = str(tmpdir_factory.mktemp("tmp"))
+
+
+@pytest.fixture(scope="class")
+def with_asset_finder(sql_db_class):
+    def asset_finder(**kwargs):
+        AssetDBWriter(sql_db_class).write(**kwargs)
+        return AssetFinder(sql_db_class)
+
+    return asset_finder
