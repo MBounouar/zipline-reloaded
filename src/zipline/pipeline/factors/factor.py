@@ -1,45 +1,35 @@
 """
 factor.py
 """
-from operator import attrgetter
+import math
 from numbers import Number
-from math import ceil
+from operator import attrgetter
 from textwrap import dedent
 
-from numpy import empty_like, inf, isnan, nan, where
+import numpy as np
 from scipy.stats import rankdata
-
-from zipline.utils.compat import wraps
-from zipline.errors import (
-    BadPercentileBounds,
-    UnknownRankMethod,
-    UnsupportedDataType,
-)
+from zipline.errors import BadPercentileBounds, UnknownRankMethod, UnsupportedDataType
 from zipline.lib.normalize import naive_grouped_rowwise_apply
 from zipline.lib.rank import masked_rankdata_2d, rankdata_1d_descending
 from zipline.pipeline.api_utils import restrict_to_dtype
 from zipline.pipeline.classifiers import Classifier, Everything, Quantiles
-from zipline.pipeline.dtypes import (
-    CLASSIFIER_DTYPES,
-    FACTOR_DTYPES,
-    FILTER_DTYPES,
-)
+from zipline.pipeline.dtypes import CLASSIFIER_DTYPES, FACTOR_DTYPES, FILTER_DTYPES
 from zipline.pipeline.expression import (
-    BadBinaryOperator,
     COMPARISONS,
-    is_comparison,
     MATH_BINOPS,
-    method_name_for_op,
-    NumericalExpression,
     NUMEXPR_MATH_FUNCS,
     UNARY_OPS,
+    BadBinaryOperator,
+    NumericalExpression,
+    is_comparison,
+    method_name_for_op,
     unary_op_name,
 )
 from zipline.pipeline.filters import (
     Filter,
+    MaximumFilter,
     NumExprFilter,
     PercentileFilter,
-    MaximumFilter,
 )
 from zipline.pipeline.mixins import (
     CustomTermMixin,
@@ -50,16 +40,10 @@ from zipline.pipeline.mixins import (
 )
 from zipline.pipeline.sentinels import NotSpecified, NotSpecifiedType
 from zipline.pipeline.term import AssetExists, ComputableTerm, Term
+from zipline.utils.compat import wraps
 from zipline.utils.functional import with_doc, with_name
 from zipline.utils.input_validation import expect_types
-from zipline.utils.math_utils import (
-    nanmax,
-    nanmean,
-    nanmedian,
-    nanmin,
-    nanstd,
-    nansum,
-)
+from zipline.utils.math_utils import nanmax, nanmean, nanmedian, nanmin, nanstd, nansum
 from zipline.utils.numpy_utils import (
     as_column,
     bool_dtype,
@@ -68,7 +52,6 @@ from zipline.utils.numpy_utils import (
     is_missing,
 )
 from zipline.utils.sharedoc import templated_docstring
-
 
 _RANK_METHODS = frozenset(["average", "min", "max", "dense", "ordinal"])
 
@@ -778,7 +761,7 @@ class Factor(RestrictedDTypeMixin, ComputableTerm):
             factor=self,
             groupby=groupby,
             dtype=float64_dtype,
-            missing_value=nan,
+            missing_value=np.nan,
             mask=mask,
             window_safe=True,
         )
@@ -1299,7 +1282,7 @@ class Factor(RestrictedDTypeMixin, ComputableTerm):
         A Filter producing True for values where this Factor is anything but
         NaN, inf, or -inf.
         """
-        return (-inf < self) & (self < inf)
+        return (-np.inf < self) & (self < np.inf)
 
     def clip(self, min_bound, max_bound, mask=NotSpecified):
         """
@@ -1453,15 +1436,15 @@ class GroupedRowTransform(Factor):
         data = arrays[0]
         group_labels, null_label = self.inputs[1]._to_integral(arrays[1])
         # Make a copy with the null code written to masked locations.
-        group_labels = where(mask, group_labels, null_label)
-        return where(
+        group_labels = np.where(mask, group_labels, null_label)
+        return np.where(
             group_labels != null_label,
             naive_grouped_rowwise_apply(
                 data=data,
                 group_labels=group_labels,
                 func=self._transform,
                 func_args=self._transform_args,
-                out=empty_like(data, dtype=self.dtype),
+                out=np.empty_like(data, dtype=self.dtype),
             ),
             self.missing_value,
         )
@@ -1832,7 +1815,7 @@ class DailySummary(SingleInputMixin, Factor):
             cls,
             inputs=[input_],
             dtype=dtype,
-            missing_value=nan,
+            missing_value=np.nan,
             window_safe=input_.window_safe,
             func=func,
             mask=mask,
@@ -1842,9 +1825,9 @@ class DailySummary(SingleInputMixin, Factor):
         func = self.params["func"]
 
         data = arrays[0]
-        data[~mask] = nan
-        if not isnan(self.inputs[0].missing_value):
-            data[data == self.inputs[0].missing_value] = nan
+        data[~mask] = np.nan
+        if not np.isnan(self.inputs[0].missing_value):
+            data[data == self.inputs[0].missing_value] = np.nan
 
         return as_column(func(data, self.inputs[0].missing_value))
 
@@ -1864,6 +1847,7 @@ def demean(row):
 
 
 def zscore(row):
+    # with np.errstate(divide="ignore", invalid="ignore"):
     return (row - nanmean(row)) / nanstd(row)
 
 
@@ -1872,7 +1856,7 @@ def winsorize(row, min_percentile, max_percentile):
     This implementation is based on scipy.stats.mstats.winsorize
     """
     a = row.copy()
-    nan_count = isnan(row).sum()
+    nan_count = np.isnan(row).sum()
     nonnan_count = a.size - nan_count
 
     # NOTE: argsort() sorts nans to the end of the array.
@@ -1887,7 +1871,7 @@ def winsorize(row, min_percentile, max_percentile):
     # Set values at indices above the max percentile to the value of the entry
     # at the cutoff.
     if max_percentile < 1:
-        upper_cutoff = int(ceil(nonnan_count * max_percentile))
+        upper_cutoff = int(math.ceil(nonnan_count * max_percentile))
         # if max_percentile is close to 1, then upper_cutoff might not
         # remove any values.
         if upper_cutoff < nonnan_count:
