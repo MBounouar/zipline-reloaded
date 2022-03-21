@@ -734,6 +734,11 @@ class DownsampledCAPipelineTestCase(DownsampledPipelineTestCase):
     DOMAIN = CA_EQUITIES
 
 
+@pytest.mark.fixture(scope="class")
+def set_test_downsample_row_wise_operation(request, with_asset_finder):
+    pass
+
+
 class TestDownsampledRowwiseOperation(WithAssetFinder, ZiplineTestCase):
 
     T = partial(pd.Timestamp, tz="utc")

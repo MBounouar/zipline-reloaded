@@ -50,21 +50,29 @@ def set_test_finance(request, with_asset_finder):
 
     T = partial(pd.Timestamp, tz="UTC")
 
-    def asset(sid, symbol, start_date, end_date):
-        return dict(
-            sid=sid,
-            symbol=symbol,
-            start_date=T(start_date),
-            end_date=T(end_date),
-            exchange="NYSE",
-        )
+    START_DATES = [
+        T("2006-01-03", tz="UTC"),
+    ] * 3
+    END_DATES = [
+        T("2006-12-29", tz="UTC"),
+    ] * 3
 
-    records = [
-        asset(1, "A", "2006-01-03", "2006-12-29"),
-        asset(2, "B", "2006-01-03", "2006-12-29"),
-        asset(133, "C", "2006-01-03", "2006-12-29"),
-    ]
-    equities = pd.DataFrame.from_records(records)
+    equities = pd.DataFrame(
+        list(
+            zip(
+                [1, 2, 133],
+                ["A", "B", "C"],
+                START_DATES,
+                END_DATES,
+                [
+                    "NYSE",
+                ]
+                * 3,
+            )
+        ),
+        columns=["sid", "symbol", "start_date", "end_date", "exchange"],
+    )
+
     exchange_names = [df["exchange"] for df in (equities,) if df is not None]
     if exchange_names:
         exchanges = pd.DataFrame(

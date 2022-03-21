@@ -49,79 +49,113 @@ import pytest
 import re
 
 
-class StatisticalBuiltInsTestCase(
-    zf.WithAssetFinder, zf.WithTradingCalendars, zf.ZiplineTestCase
-):
+@pytest.fixture(scope="class")
+def set_test_statistical_built_ins(request, with_asset_finder, with_trading_calendars):
     sids = ASSET_FINDER_EQUITY_SIDS = pd.Index([1, 2, 3], dtype="int64")
     START_DATE = pd.Timestamp("2015-01-31", tz="UTC")
     END_DATE = pd.Timestamp("2015-03-01", tz="UTC")
     ASSET_FINDER_EQUITY_SYMBOLS = ("A", "B", "C")
     ASSET_FINDER_COUNTRY_CODE = "US"
 
-    @classmethod
-    def init_class_fixtures(cls):
-        super(StatisticalBuiltInsTestCase, cls).init_class_fixtures()
+    equities = pd.DataFrame(
+        list(
+            zip(
+                ASSET_FINDER_EQUITY_SIDS,
+                ASSET_FINDER_EQUITY_SYMBOLS,
+                [
+                    START_DATE,
+                ]
+                * 3,
+                [
+                    END_DATE,
+                ]
+                * 3,
+                [
+                    "NYSE",
+                ]
+                * 3,
+            )
+        ),
+        columns=["sid", "symbol", "start_date", "end_date", "exchange"],
+    )
 
-        day = cls.trading_calendar.day
-        cls.dates = dates = pd.date_range(
-            "2015-02-01",
-            "2015-02-28",
-            freq=day,
-            tz="UTC",
+    exchange_names = [df["exchange"] for df in (equities,) if df is not None]
+    if exchange_names:
+        exchanges = pd.DataFrame(
+            {
+                "exchange": pd.concat(exchange_names).unique(),
+                "country_code": ASSET_FINDER_COUNTRY_CODE,
+            }
         )
 
-        # Using these start and end dates because they are a contigous span of
-        # 5 days (Monday - Friday) and they allow for plenty of days to look
-        # back on when computing correlations and regressions.
-        cls.start_date_index = start_date_index = 14
-        cls.end_date_index = end_date_index = 18
-        cls.pipeline_start_date = dates[start_date_index]
-        cls.pipeline_end_date = dates[end_date_index]
-        cls.num_days = num_days = end_date_index - start_date_index + 1
+    request.cls.asset_finder = with_asset_finder(
+        **dict(equities=equities, exchanges=exchanges)
+    )
+    day = request.cls.trading_calendar.day
+    request.cls.dates = dates = pd.date_range(
+        "2015-02-01",
+        "2015-02-28",
+        freq=day,
+        tz="UTC",
+    )
 
-        sids = cls.sids
-        cls.assets = assets = cls.asset_finder.retrieve_all(sids)
-        cls.my_asset_column = my_asset_column = 0
-        cls.my_asset = assets[my_asset_column]
-        cls.num_assets = num_assets = len(assets)
+    # Using these start and end dates because they are a contigous span of
+    # 5 days (Monday - Friday) and they allow for plenty of days to look
+    # back on when computing correlations and regressions.
+    request.cls.start_date_index = start_date_index = 14
+    request.cls.end_date_index = end_date_index = 18
+    request.cls.pipeline_start_date = dates[start_date_index]
+    request.cls.pipeline_end_date = dates[end_date_index]
+    request.cls.num_days = num_days = end_date_index - start_date_index + 1
 
-        cls.raw_data = raw_data = pd.DataFrame(
-            data=np.arange(len(dates) * len(sids), dtype=float64_dtype).reshape(
-                len(dates),
-                len(sids),
-            ),
-            index=dates,
-            columns=assets,
-        )
+    request.cls.assets = assets = request.cls.asset_finder.retrieve_all(sids)
+    request.cls.my_asset_column = my_asset_column = 0
+    request.cls.my_asset = assets[my_asset_column]
+    request.cls.num_assets = num_assets = len(assets)
 
-        # Using mock 'close' data here because the correlation and regression
-        # built-ins use USEquityPricing.close as the input to their `Returns`
-        # factors. Since there is no way to change that when constructing an
-        # instance of these built-ins, we need to test with mock 'close' data
-        # to most accurately reflect their true behavior and results.
-        close_loader = DataFrameLoader(USEquityPricing.close, raw_data)
+    request.cls.raw_data = raw_data = pd.DataFrame(
+        data=np.arange(len(dates) * len(sids), dtype=float64_dtype).reshape(
+            len(dates),
+            len(sids),
+        ),
+        index=dates,
+        columns=assets,
+    )
 
-        cls.run_pipeline = SimplePipelineEngine(
-            {USEquityPricing.close: close_loader}.__getitem__,
-            cls.asset_finder,
-            default_domain=US_EQUITIES,
-        ).run_pipeline
+    # Using mock 'close' data here because the correlation and regression
+    # built-ins use USEquityPricing.close as the input to their `Returns`
+    # factors. Since there is no way to change that when constructing an
+    # instance of these built-ins, we need to test with mock 'close' data
+    # to most accurately reflect their true behavior and results.
+    close_loader = DataFrameLoader(USEquityPricing.close, raw_data)
 
-        cls.cascading_mask = AssetIDPlusDay() < (sids[-1] + dates[start_date_index].day)
-        cls.expected_cascading_mask_result = make_cascading_boolean_array(
-            shape=(num_days, num_assets),
-        )
-        cls.alternating_mask = (AssetIDPlusDay() % 2).eq(0)
-        cls.expected_alternating_mask_result = make_alternating_boolean_array(
-            shape=(num_days, num_assets),
-        )
-        cls.expected_no_mask_result = np.full(
-            shape=(num_days, num_assets),
-            fill_value=True,
-            dtype=bool_dtype,
-        )
+    request.cls.run_pipeline = SimplePipelineEngine(
+        {USEquityPricing.close: close_loader}.__getitem__,
+        request.cls.asset_finder,
+        default_domain=US_EQUITIES,
+    ).run_pipeline
 
-    @parameter_space(returns_length=[2, 3], correlation_length=[3, 4])
+    request.cls.cascading_mask = AssetIDPlusDay() < (
+        sids[-1] + dates[start_date_index].day
+    )
+    request.cls.expected_cascading_mask_result = make_cascading_boolean_array(
+        shape=(num_days, num_assets),
+    )
+    request.cls.alternating_mask = (AssetIDPlusDay() % 2).eq(0)
+    request.cls.expected_alternating_mask_result = make_alternating_boolean_array(
+        shape=(num_days, num_assets),
+    )
+    request.cls.expected_no_mask_result = np.full(
+        shape=(num_days, num_assets),
+        fill_value=True,
+        dtype=bool_dtype,
+    )
+
+
+@pytest.mark.usefixtures("set_test_statistical_built_ins")
+class TestStatisticalBuiltIns:
+    @pytest.mark.parametrize("returns_length", [2, 3])
+    @pytest.mark.parametrize("correlation_length", [3, 4])
     def test_correlation_factors(self, returns_length, correlation_length):
         """
         Tests for the built-in factors `RollingPearsonOfReturns` and
@@ -219,7 +253,8 @@ class StatisticalBuiltInsTestCase(
             )
             assert_frame_equal(spearman_results, expected_spearman_results)
 
-    @parameter_space(returns_length=[2, 3], regression_length=[3, 4])
+    @pytest.mark.parametrize("returns_length", [2, 3])
+    @pytest.mark.parametrize("regression_length", [3, 4])
     def test_regression_of_returns_factor(self, returns_length, regression_length):
         """
         Tests for the built-in factor `RollingLinearRegressionOfReturns`.
