@@ -8,6 +8,7 @@ from numpy import integer as any_integer
 import pandas as pd
 from pandas import Timestamp
 import sqlite3
+import sqlalchemy as sa
 
 from zipline.utils.functional import keysorted
 from zipline.utils.input_validation import preprocess
@@ -79,7 +80,7 @@ def specialize_any_integer(d):
     return out
 
 
-class SQLiteAdjustmentReader(object):
+class SQLiteAdjustmentReader:
     """
     Loads adjustments based on corporate actions from a SQLite database.
 
@@ -213,7 +214,7 @@ class SQLiteAdjustmentReader(object):
         t = (sid,)
         c = self.conn.cursor()
         adjustments_for_sid = c.execute(
-            "SELECT effective_date, ratio FROM %s WHERE sid = ?" % table_name, t
+            f"SELECT effective_date, ratio FROM {table_name} WHERE sid = ?", t
         ).fetchall()
         c.close()
 
@@ -339,7 +340,7 @@ class SQLiteAdjustmentReader(object):
         return out
 
 
-class SQLiteAdjustmentWriter(object):
+class SQLiteAdjustmentWriter:
     """
     Writer for data to be read by SQLiteAdjustmentReader
 
@@ -368,10 +369,15 @@ class SQLiteAdjustmentWriter(object):
                 except OSError as e:
                     if e.errno != ENOENT:
                         raise
-            self.conn = sqlite3.connect(conn_or_path)
+            if conn_or_path.startswith("postgresql"):
+                engine = sa.create_engine(conn_or_path)
+                self.conn = engine.connect()
+            else:
+                self.conn = sqlite3.connect(conn_or_path)
+
             self.uri = conn_or_path
         else:
-            raise TypeError("Unknown connection type %s" % type(conn_or_path))
+            raise TypeError(f"Unknown connection type {type(conn_or_path)}")
 
         self._equity_daily_bar_reader = equity_daily_bar_reader
 
@@ -395,12 +401,8 @@ class SQLiteAdjustmentWriter(object):
             if frozenset(frame.columns) != frozenset(expected_dtypes):
                 raise ValueError(
                     "Unexpected frame columns:\n"
-                    "Expected Columns: %s\n"
-                    "Received Columns: %s"
-                    % (
-                        set(expected_dtypes),
-                        frame.columns.tolist(),
-                    )
+                    f"Expected Columns: {set(expected_dtypes)}\n"
+                    f"Received Columns: {frame.columns.tolist()}"
                 )
 
             actual_dtypes = frame.dtypes
@@ -408,12 +410,8 @@ class SQLiteAdjustmentWriter(object):
                 actual = actual_dtypes[colname]
                 if not np.issubdtype(actual, expected):
                     raise TypeError(
-                        "Expected data of type {expected} for column"
-                        " '{colname}', but got '{actual}'.".format(
-                            expected=expected,
-                            colname=colname,
-                            actual=actual,
-                        ),
+                        f"Expected data of type {expected} for column"
+                        f" '{colname}', but got '{actual}'."
                     )
 
         frame.to_sql(
@@ -426,11 +424,7 @@ class SQLiteAdjustmentWriter(object):
     def write_frame(self, tablename, frame):
         if tablename not in SQLITE_ADJUSTMENT_TABLENAMES:
             raise ValueError(
-                "Adjustment table %s not in %s"
-                % (
-                    tablename,
-                    SQLITE_ADJUSTMENT_TABLENAMES,
-                )
+                f"Adjustment table {tablename} not in {SQLITE_ADJUSTMENT_TABLENAMES}"
             )
         if not (frame is None or frame.empty):
             frame = frame.copy()

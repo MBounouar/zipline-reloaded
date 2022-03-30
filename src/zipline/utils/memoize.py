@@ -21,7 +21,7 @@ class classlazyval(lazyval):
     -------
 
     >>> from zipline.utils.memoize import classlazyval
-    >>> class C(object):
+    >>> class C:
     ...     count = 0
     ...     @classlazyval
     ...     def val(cls):

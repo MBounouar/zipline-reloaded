@@ -44,16 +44,16 @@ equities = sa.Table(
     metadata,
     sa.Column(
         "sid",
-        sa.Integer,
+        sa.BigInteger,
         unique=True,
         nullable=False,
         primary_key=True,
     ),
     sa.Column("asset_name", sa.Text),
-    sa.Column("start_date", sa.Integer, default=0, nullable=False),
-    sa.Column("end_date", sa.Integer, nullable=False),
-    sa.Column("first_traded", sa.Integer),
-    sa.Column("auto_close_date", sa.Integer),
+    sa.Column("start_date", sa.BigInteger, default=0, nullable=False),
+    sa.Column("end_date", sa.BigInteger, nullable=False),
+    sa.Column("first_traded", sa.BigInteger),
+    sa.Column("auto_close_date", sa.BigInteger),
     sa.Column("exchange", sa.Text, sa.ForeignKey(exchanges.c.exchange)),
 )
 
@@ -62,14 +62,14 @@ equity_symbol_mappings = sa.Table(
     metadata,
     sa.Column(
         "id",
-        sa.Integer,
+        sa.BigInteger,
         unique=True,
         nullable=False,
         primary_key=True,
     ),
     sa.Column(
         "sid",
-        sa.Integer,
+        sa.BigInteger,
         sa.ForeignKey(equities.c.sid),
         nullable=False,
         index=True,
@@ -90,12 +90,12 @@ equity_symbol_mappings = sa.Table(
     ),
     sa.Column(
         "start_date",
-        sa.Integer,
+        sa.BigInteger,
         nullable=False,
     ),
     sa.Column(
         "end_date",
-        sa.Integer,
+        sa.BigInteger,
         nullable=False,
     ),
 )
@@ -105,14 +105,14 @@ equity_supplementary_mappings = sa.Table(
     metadata,
     sa.Column(
         "sid",
-        sa.Integer,
+        sa.BigInteger,
         sa.ForeignKey(equities.c.sid),
         nullable=False,
         primary_key=True,
     ),
     sa.Column("field", sa.Text, nullable=False, primary_key=True),
-    sa.Column("start_date", sa.Integer, nullable=False, primary_key=True),
-    sa.Column("end_date", sa.Integer, nullable=False),
+    sa.Column("start_date", sa.BigInteger, nullable=False, primary_key=True),
+    sa.Column("end_date", sa.BigInteger, nullable=False),
     sa.Column("value", sa.Text, nullable=False),
 )
 
@@ -126,7 +126,7 @@ futures_root_symbols = sa.Table(
         nullable=False,
         primary_key=True,
     ),
-    sa.Column("root_symbol_id", sa.Integer),
+    sa.Column("root_symbol_id", sa.BigInteger),
     sa.Column("sector", sa.Text),
     sa.Column("description", sa.Text),
     sa.Column(
@@ -141,7 +141,7 @@ futures_contracts = sa.Table(
     metadata,
     sa.Column(
         "sid",
-        sa.Integer,
+        sa.BigInteger,
         unique=True,
         nullable=False,
         primary_key=True,
@@ -154,17 +154,17 @@ futures_contracts = sa.Table(
         index=True,
     ),
     sa.Column("asset_name", sa.Text),
-    sa.Column("start_date", sa.Integer, default=0, nullable=False),
-    sa.Column("end_date", sa.Integer, nullable=False),
-    sa.Column("first_traded", sa.Integer),
+    sa.Column("start_date", sa.BigInteger, default=0, nullable=False),
+    sa.Column("end_date", sa.BigInteger, nullable=False),
+    sa.Column("first_traded", sa.BigInteger),
     sa.Column(
         "exchange",
         sa.Text,
         sa.ForeignKey(exchanges.c.exchange),
     ),
-    sa.Column("notice_date", sa.Integer, nullable=False),
-    sa.Column("expiration_date", sa.Integer, nullable=False),
-    sa.Column("auto_close_date", sa.Integer, nullable=False),
+    sa.Column("notice_date", sa.BigInteger, nullable=False),
+    sa.Column("expiration_date", sa.BigInteger, nullable=False),
+    sa.Column("auto_close_date", sa.BigInteger, nullable=False),
     sa.Column("multiplier", sa.Float),
     sa.Column("tick_size", sa.Float),
 )
@@ -172,7 +172,7 @@ futures_contracts = sa.Table(
 asset_router = sa.Table(
     "asset_router",
     metadata,
-    sa.Column("sid", sa.Integer, unique=True, nullable=False, primary_key=True),
+    sa.Column("sid", sa.BigInteger, unique=True, nullable=False, primary_key=True),
     sa.Column("asset_type", sa.Text),
 )
 

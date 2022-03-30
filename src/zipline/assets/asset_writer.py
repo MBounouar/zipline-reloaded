@@ -450,14 +450,16 @@ def write_version_info(conn, version_table, version_value):
         The version to write in to the database
 
     """
+    if conn.engine.name == "postgresql":
+        conn.execute(sa.text("ALTER SEQUENCE version_info_id_seq RESTART WITH 1"))
     conn.execute(sa.insert(version_table, values={"version": version_value}))
 
 
-class _empty(object):
+class _empty:
     columns = ()
 
 
-class AssetDBWriter(object):
+class AssetDBWriter:
     """Class used to write data to an assets db.
 
     Parameters
@@ -483,6 +485,7 @@ class AssetDBWriter(object):
         chunk_size,
     ):
         with self.engine.begin() as conn:
+            # with self.engine.connect() as conn:
             # Create SQL tables if they do not exist.
             self.init_db(conn)
 
@@ -824,9 +827,12 @@ class AssetDBWriter(object):
             if dtype.kind == "M":
                 df[column] = _dt_to_epoch_ns(df[column])
 
+        if txn.dialect.name == "postgresql":
+            txn.execute(f"ALTER TABLE {tbl.name} DISABLE TRIGGER ALL;")
+
         df.to_sql(
             tbl.name,
-            txn.connection,
+            txn,
             index=True,
             index_label=first(tbl.primary_key.columns).name,
             if_exists="append",
@@ -865,7 +871,7 @@ class AssetDBWriter(object):
             }
         ).to_sql(
             asset_router.name,
-            txn.connection,
+            txn,
             if_exists="append",
             index=False,
             chunksize=chunk_size,

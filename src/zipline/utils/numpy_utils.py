@@ -3,7 +3,7 @@ Utilities for working with numpy arrays.
 """
 from collections import OrderedDict
 from datetime import datetime
-from distutils.version import StrictVersion
+from packaging.version import Version
 from warnings import (
     catch_warnings,
     filterwarnings,
@@ -406,7 +406,7 @@ def busday_count_mask_NaT(begindates, enddates, out=None):
     return out
 
 
-class WarningContext(object):
+class WarningContext:
     """
     Re-usable contextmanager for contextually managing warnings.
     """

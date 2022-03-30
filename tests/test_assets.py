@@ -2022,7 +2022,27 @@ class TestAssetFinderMultipleCountries:
             assert result.sid == n * 2 + 1
 
 
-@pytest.mark.usefixtures("empty_assets_db")
+@pytest.fixture(scope="function")
+def sql_db(request, postgresql):
+    url = "sqlite:///:memory:"
+    request.cls.engine = sa.create_engine(url)
+    # connection = f"postgresql://{postgresql.info.user}:@{postgresql.info.host}:{postgresql.info.port}/{postgresql.info.dbname}"
+    # request.cls.engine = sa.create_engine(
+    #     connection, echo=False, poolclass=sa.pool.NullPool
+    # )
+    yield request.cls.engine
+    request.cls.engine.dispose()
+    request.cls.engine = None
+
+
+@pytest.fixture(scope="function")
+def setup_empty_assets_db(sql_db, request):
+    AssetDBWriter(sql_db).write(None)
+    request.cls.metadata = sa.MetaData(sql_db)
+    request.cls.metadata.reflect(bind=sql_db)
+
+
+@pytest.mark.usefixtures("sql_db", "setup_empty_assets_db")
 class TestAssetDBVersioning:
     def test_check_version(self):
         version_table = self.metadata.tables["version_info"]

@@ -171,7 +171,7 @@ def lossless_float_to_int(funcname, func, argname, arg):
     raise TypeError(arg)
 
 
-class EventManager(object):
+class EventManager:
     """Manages a list of Event objects.
     This manages the logic for checking the rules and dispatching to the
     handle_data function of the Events.
@@ -186,9 +186,7 @@ class EventManager(object):
     def __init__(self, create_context=None):
         self._events = []
         self._create_context = (
-            create_context
-            if create_context is not None
-            else lambda *_: nop_context
+            create_context if create_context is not None else lambda *_: nop_context
         )
 
     def add_event(self, event, prepend=False):
@@ -286,10 +284,7 @@ class ComposedRule(StatelessRule):
     """
 
     def __init__(self, first, second, composer):
-        if not (
-            isinstance(first, StatelessRule)
-            and isinstance(second, StatelessRule)
-        ):
+        if not (isinstance(first, StatelessRule) and isinstance(second, StatelessRule)):
             raise ValueError("Only two StatelessRules can be composed")
 
         self.first = first
@@ -300,9 +295,7 @@ class ComposedRule(StatelessRule):
         """
         Composes the two rules with a lazy composer.
         """
-        return self.composer(
-            self.first.should_trigger, self.second.should_trigger, dt
-        )
+        return self.composer(self.first.should_trigger, self.second.should_trigger, dt)
 
     @staticmethod
     def lazy_and(first_should_trigger, second_should_trigger, dt):
@@ -611,7 +604,7 @@ class OncePerDay(StatefulRule):
 # Factory API
 
 
-class date_rules(object):
+class date_rules:
     """
     Factories for date-based :func:`~zipline.api.schedule_function` rules.
 
@@ -696,7 +689,7 @@ class date_rules(object):
         return NDaysBeforeLastTradingDayOfWeek(n=days_offset)
 
 
-class time_rules(object):
+class time_rules:
     """Factories for time-based :func:`~zipline.api.schedule_function` rules.
 
     See Also
@@ -773,7 +766,7 @@ class time_rules(object):
     every_minute = Always
 
 
-class calendars(object):
+class calendars:
     US_EQUITIES = sentinel("US_EQUITIES")
     US_FUTURES = sentinel("US_FUTURES")
 

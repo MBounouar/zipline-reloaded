@@ -15,6 +15,7 @@
 from functools import partial
 import os
 import sqlite3
+import psycopg2
 
 import sqlalchemy as sa
 
@@ -30,16 +31,20 @@ def group_into_chunks(items, chunk_size=SQLITE_MAX_VARIABLE_NUMBER):
 
 def verify_sqlite_path_exists(path):
     if path != ":memory:" and not os.path.exists(path):
-        raise ValueError("SQLite file {!r} doesn't exist.".format(path))
+        raise ValueError(f"SQLite file {path!r} doesn't exist.")
 
 
 def check_and_create_connection(path, require_exists):
+    if path.startswith("postgresql"):
+        return psycopg2.connect(path)
     if require_exists:
         verify_sqlite_path_exists(path)
     return sqlite3.connect(path)
 
 
 def check_and_create_engine(path, require_exists):
+    if path.startswith("postgresql"):
+        return sa.create_engine(path)
     if require_exists:
         verify_sqlite_path_exists(path)
     return sa.create_engine("sqlite:///" + path)
