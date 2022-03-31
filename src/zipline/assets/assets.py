@@ -627,26 +627,24 @@ class AssetFinder:
         data_cols = (cols.sid,) + tuple(cols[name] for name in symbol_columns)
 
         # Also select the max of end_date so that all non-grouped fields take
-        # on the value associated with the max end_date. The SQLite docs say
-        # this:
-        #
-        # When the min() or max() aggregate functions are used in an aggregate
-        # query, all bare columns in the result set take values from the input
-        # row which also contains the minimum or maximum. Only the built-in
-        # min() and max() functions work this way.
-        #
-        # See https://www.sqlite.org/lang_select.html#resultset, for more info.
-        to_select = data_cols + (sa.func.max(cols.end_date),)
-
-        return (
-            sa.select(
-                to_select,
-            )
-            .where(cols.sid.in_(map(int, sid_group)))
-            .group_by(
-                cols.sid,
-            )
+        # on the value associated with the max end_date.
+        # to_select = data_cols + (sa.func.max(cols.end_date),)
+        func_rank = (
+            sa.func.rank()
+            .over(order_by=cols.end_date.desc(), partition_by=cols.sid)
+            .label("rnk")
         )
+        to_select = data_cols + (func_rank,)
+
+        subquery = (
+            sa.select(to_select).where(cols.sid.in_(map(int, sid_group))).subquery("sq")
+        )
+        query = (
+            sa.select(subquery.columns)
+            .filter(subquery.c.rnk == 1)
+            .select_from(subquery)
+        )
+        return query
 
     def _lookup_most_recent_symbols(self, sids):
         return {
@@ -1272,7 +1270,10 @@ class AssetFinder:
             return tuple(
                 map(
                     itemgetter("sid"),
-                    sa.select((getattr(self, tblattr).c.sid,)).execute().fetchall(),
+                    sa.select((getattr(self, tblattr).c.sid,))
+                    .order_by(getattr(self, tblattr).c.sid)
+                    .execute()
+                    .fetchall(),
                 )
             )
 
