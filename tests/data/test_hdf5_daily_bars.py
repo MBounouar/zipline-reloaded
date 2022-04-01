@@ -1,24 +1,22 @@
 import numpy as np
 import pandas as pd
-
 from zipline.data.hdf5_daily_bars import (
     HDF5DailyBarReader,
     HDF5DailyBarWriter,
     MultiCountryDailyBarReader,
 )
-import zipline.testing.fixtures as zp_fixtures
 from zipline.testing.predicates import assert_equal
 
 
-class H5WriterTestCase(zp_fixtures.WithTmpDir, zp_fixtures.ZiplineTestCase):
-    def test_write_empty_country(self):
+class TestHDF5Writer:
+    def test_write_empty_country(self, tmp_path):
         """
         Test that we can write an empty country to an HDF5 daily bar writer.
 
         This is useful functionality for some tests, but it requires a bunch of
         special cased logic in the writer.
         """
-        path = self.tmpdir.getpath("empty.h5")
+        path = tmp_path / "empty.h5"
         writer = HDF5DailyBarWriter(path, date_chunk_size=30)
         writer.write_from_sid_df_pairs("US", iter(()))
 
@@ -31,8 +29,8 @@ class H5WriterTestCase(zp_fixtures.WithTmpDir, zp_fixtures.ZiplineTestCase):
         assert_equal(reader.asset_end_dates, empty_dates)
         assert_equal(reader.dates, empty_dates)
 
-    def test_multi_country_attributes(self):
-        path = self.tmpdir.getpath("multi.h5")
+    def test_multi_country_attributes(self, tmp_path):
+        path = tmp_path / "multi.h5"
         writer = HDF5DailyBarWriter(path, date_chunk_size=30)
 
         US = pd.DataFrame(
