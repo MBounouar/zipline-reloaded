@@ -1265,7 +1265,7 @@ class BcolzMinuteBarReader(MinuteBarReader):
         return results
 
 
-class MinuteBarUpdateReader(object, metaclass=ABCMeta):
+class MinuteBarUpdateReader(metaclass=ABCMeta):
     """
     Abstract base class for minute update readers.
     """
