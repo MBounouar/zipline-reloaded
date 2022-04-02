@@ -20,7 +20,7 @@ from abc import ABCMeta, abstractmethod
 ROLL_DAYS_FOR_CURRENT_CONTRACT = 90
 
 
-class RollFinder(object, metaclass=ABCMeta):
+class RollFinder(metaclass=ABCMeta):
     """
     Abstract base class for calculating when futures contracts are the active
     contract.

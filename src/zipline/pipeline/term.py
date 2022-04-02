@@ -47,7 +47,7 @@ from .downsample_helpers import expect_downsample_frequency
 from .sentinels import NotSpecified
 
 
-class Term(object, metaclass=ABCMeta):
+class Term(metaclass=ABCMeta):
     """
     Base class for objects that can appear in the compute graph of a
     :class:`zipline.pipeline.Pipeline`.
@@ -251,9 +251,7 @@ class Term(object, metaclass=ABCMeta):
         return slice_type(self, key)
 
     @classmethod
-    def _static_identity(
-        cls, domain, dtype, missing_value, window_safe, ndim, params
-    ):
+    def _static_identity(cls, domain, dtype, missing_value, window_safe, ndim, params):
         """
         Return the identity of the Term that would be constructed from the
         given arguments.
@@ -326,9 +324,7 @@ class Term(object, metaclass=ABCMeta):
         # call super().
         self._subclass_called_super_validate = True
 
-    def compute_extra_rows(
-        self, all_dates, start_date, end_date, min_extra_rows
-    ):
+    def compute_extra_rows(self, all_dates, start_date, end_date, min_extra_rows):
         """
         Calculate the number of extra rows needed to compute ``self``.
 
@@ -555,9 +551,7 @@ class ComputableTerm(Term):
         return super(ComputableTerm, self)._init(*args, **kwargs)
 
     @classmethod
-    def _static_identity(
-        cls, inputs, outputs, window_length, mask, *args, **kwargs
-    ):
+    def _static_identity(cls, inputs, outputs, window_length, mask, *args, **kwargs):
         return (
             super(ComputableTerm, cls)._static_identity(*args, **kwargs),
             inputs,

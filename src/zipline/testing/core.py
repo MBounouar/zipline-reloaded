@@ -53,7 +53,6 @@ from zipline.utils.pandas_utils import timedelta_to_integral_seconds
 from zipline.utils.sentinel import sentinel
 
 import numpy as np
-from numpy import float64
 
 EPOCH = pd.Timestamp(0, tz="UTC")
 
@@ -269,8 +268,8 @@ def make_trade_data_for_asset_info(
     trade_data = {}
     sids = asset_info.index
 
-    price_sid_deltas = np.arange(len(sids), dtype=float64) * price_step_by_sid
-    price_date_deltas = np.arange(len(dates), dtype=float64) * price_step_by_date
+    price_sid_deltas = np.arange(len(sids), dtype=np.float64) * price_step_by_sid
+    price_date_deltas = np.arange(len(dates), dtype=np.float64) * price_step_by_date
     prices = (price_sid_deltas + as_column(price_date_deltas)) + price_start
 
     volume_sid_deltas = np.arange(len(sids)) * volume_step_by_sid

@@ -61,7 +61,7 @@ class FinalMeta(type):
         super(FinalMeta, self).__setattr__(name, value)
 
 
-class final(object, metaclass=ABCMeta):
+class final(metaclass=ABCMeta):
     """
     An attribute that cannot be overridden.
     This is like the final modifier in Java.

@@ -41,10 +41,10 @@ class NoDataForSid(Exception):
 OHLCV = ("open", "high", "low", "close", "volume")
 
 
-class BarReader(object, metaclass=ABCMeta):
+class BarReader(metaclass=ABCMeta):
     @abstractproperty
     def data_frequency(self):
-        pass
+        ...
 
     @abstractmethod
     def load_raw_arrays(self, columns, start_date, end_date, assets):
@@ -67,7 +67,7 @@ class BarReader(object, metaclass=ABCMeta):
             (minutes in range, sids) with a dtype of float64, containing the
             values for the respective field over start and end dt range.
         """
-        pass
+        ...
 
     @abstractproperty
     def last_available_dt(self):
@@ -77,7 +77,7 @@ class BarReader(object, metaclass=ABCMeta):
         dt : pd.Timestamp
             The last session for which the reader can provide data.
         """
-        pass
+        ...
 
     @abstractproperty
     def trading_calendar(self):
@@ -85,7 +85,7 @@ class BarReader(object, metaclass=ABCMeta):
         Returns the zipline.utils.calendar.trading_calendar used to read
         the data.  Can be None (if the writer didn't specify it).
         """
-        pass
+        ...
 
     @abstractproperty
     def first_trading_day(self):
@@ -96,7 +96,7 @@ class BarReader(object, metaclass=ABCMeta):
             The first trading day (session) for which the reader can provide
             data.
         """
-        pass
+        ...
 
     @abstractmethod
     def get_value(self, sid, dt, field):
@@ -124,7 +124,7 @@ class BarReader(object, metaclass=ABCMeta):
             If the given dt is not a valid market minute (in minute mode) or
             session (in daily mode) according to this reader's tradingcalendar.
         """
-        pass
+        ...
 
     @abstractmethod
     def get_last_traded_dt(self, asset, dt):
@@ -146,4 +146,4 @@ class BarReader(object, metaclass=ABCMeta):
             The dt of the last trade for the given asset, using the input
             dt as a vantage point.
         """
-        pass
+        ...
