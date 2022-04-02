@@ -10,47 +10,48 @@ from warnings import (
 )
 
 import numpy as np
-from numpy import (
-    array_equal,
-    broadcast,
-    busday_count,
-    datetime64,
-    diff,
-    dtype,
-    empty,
-    flatnonzero,
-    hstack,
-    isnan,
-    nan,
-    vectorize,
-    where,
-)
+
+# from numpy import (
+#     array_equal,
+#     broadcast,
+#     busday_count,
+#     datetime64,
+#     diff,
+#     dtype,
+#     empty,
+#     flatnonzero,
+#     hstack,
+#     isnan,
+#     nan,
+#     vectorize,
+#     where,
+# )
 from numpy.lib.stride_tricks import as_strided
 from toolz import flip
 
 numpy_version = Version(np.__version__)
 
-uint8_dtype = dtype("uint8")
-bool_dtype = dtype("bool")
+uint8_dtype = np.dtype("uint8")
+bool_dtype = np.dtype("bool")
 
-uint32_dtype = dtype("uint32")
-uint64_dtype = dtype("uint64")
-int64_dtype = dtype("int64")
+uint32_dtype = np.dtype("uint32")
+uint64_dtype = np.dtype("uint64")
+int64_dtype = np.dtype("int64")
 
-float32_dtype = dtype("float32")
-float64_dtype = dtype("float64")
+float32_dtype = np.dtype("float32")
+float64_dtype = np.dtype("float64")
 
-complex128_dtype = dtype("complex128")
+complex128_dtype = np.dtype("complex128")
 
-datetime64D_dtype = dtype("datetime64[D]")
-datetime64ns_dtype = dtype("datetime64[ns]")
+datetime64D_dtype = np.dtype("datetime64[D]")
+datetime64ns_dtype = np.dtype("datetime64[ns]")
 
-object_dtype = dtype("O")
+object_dtype = np.dtype("O")
 # We use object arrays for strings.
 categorical_dtype = object_dtype
 
-make_datetime64ns = flip(datetime64, "ns")
-make_datetime64D = flip(datetime64, "D")
+make_datetime64ns = flip(np.datetime64, "ns")
+make_datetime64D = flip(np.datetime64, "D")
 
 # Array compare that works across versions of numpy
 try:
@@ -59,7 +60,7 @@ except AttributeError:
     assert_array_compare = np.testing.assert_array_compare
 
 NaTmap = {
-    dtype("datetime64[%s]" % unit): datetime64("NaT", unit)
+    np.dtype("datetime64[%s]" % unit): np.datetime64("NaT", unit)
     for unit in ("ns", "us", "ms", "s", "m", "D")
 }
 
@@ -85,27 +86,27 @@ NaTD = NaT_for_dtype(datetime64D_dtype)
 
 _FILLVALUE_DEFAULTS = {
     bool_dtype: False,
-    float32_dtype: nan,
-    float64_dtype: nan,
+    float32_dtype: np.nan,
+    float64_dtype: np.nan,
     datetime64ns_dtype: NaTns,
     object_dtype: None,
 }
 
 INT_DTYPES_BY_SIZE_BYTES = OrderedDict(
     [
-        (1, dtype("int8")),
-        (2, dtype("int16")),
-        (4, dtype("int32")),
-        (8, dtype("int64")),
+        (1, np.dtype("int8")),
+        (2, np.dtype("int16")),
+        (4, np.dtype("int32")),
+        (8, np.dtype("int64")),
     ]
 )
 
 UNSIGNED_INT_DTYPES_BY_SIZE_BYTES = OrderedDict(
     [
-        (1, dtype("uint8")),
-        (2, dtype("uint16")),
-        (4, dtype("uint32")),
-        (8, dtype("uint64")),
+        (1, np.dtype("uint8")),
+        (2, np.dtype("uint16")),
+        (4, np.dtype("uint32")),
+        (8, np.dtype("uint64")),
     ]
 )
 
@@ -349,8 +350,8 @@ def is_missing(data, missing_value):
     """
     Generic is_missing function that handles NaN and NaT.
     """
-    if is_float(data) and isnan(missing_value):
-        return isnan(data)
+    if is_float(data) and np.isnan(missing_value):
+        return np.isnan(data)
     elif is_datetime(data) and isnat(missing_value):
         return isnat(data)
     elif is_object(data) and missing_value is None:
@@ -367,7 +368,7 @@ def same(x, y):
 
     Returns True if `x == y`, or if x and y are both NaN or both NaT.
     """
-    if is_float(x) and isnan(x) and is_float(y) and isnan(y):
+    if is_float(x) and np.isnan(x) and is_float(y) and np.isnan(y):
         return True
     elif is_datetime(x) and isnat(x) and is_datetime(y) and isnat(y):
         return True
@@ -388,20 +389,20 @@ def busday_count_mask_NaT(begindates, enddates, out=None):
     np.busday_count
     """
     if out is None:
-        out = empty(broadcast(begindates, enddates).shape, dtype=float)
+        out = np.empty(np.broadcast(begindates, enddates).shape, dtype=float)
 
     beginmask = isnat(begindates)
     endmask = isnat(enddates)
 
-    out = busday_count(
+    out = np.busday_count(
         # Temporarily fill in non-NaT values.
-        where(beginmask, _notNaT, begindates),
-        where(endmask, _notNaT, enddates),
+        np.where(beginmask, _notNaT, begindates),
+        np.where(endmask, _notNaT, enddates),
         out=out,
     )
 
     # Fill in entries where either comparison was NaT with nan in the output.
-    out[beginmask | endmask] = nan
+    out[beginmask | endmask] = np.nan
     return out
 
 
@@ -455,7 +456,7 @@ def vectorized_is_element(array, choices):
     was_element : np.ndarray[bool]
         Array indicating whether each element of ``array`` was in ``choices``.
     """
-    return vectorize(choices.__contains__, otypes=[bool])(array)
+    return np.vectorize(choices.__contains__, otypes=[bool])(array)
 
 
 def as_column(a):
@@ -513,12 +514,12 @@ def changed_locations(a, include_first):
     """
     if a.ndim > 1:
         raise ValueError("indices_of_changed_values only supports 1D arrays.")
-    indices = flatnonzero(diff(a)) + 1
+    indices = np.flatnonzero(np.diff(a)) + 1
 
     if not include_first:
         return indices
 
-    return hstack([[0], indices])
+    return np.hstack([[0], indices])
 
 
 def compare_datetime_arrays(x, y):
@@ -526,7 +527,7 @@ def compare_datetime_arrays(x, y):
     Compare datetime64 ndarrays, treating NaT values as equal.
     """
 
-    return array_equal(x.view("int64"), y.view("int64"))
+    return np.array_equal(x.view("int64"), y.view("int64"))
 
 
 def bytes_array_to_native_str_object_array(a):
