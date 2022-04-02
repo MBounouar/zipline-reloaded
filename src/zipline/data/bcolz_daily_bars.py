@@ -11,43 +11,26 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from functools import partial
 import warnings
+from functools import partial
 
 with warnings.catch_warnings():  # noqa
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     from bcolz import carray, ctable
-    import numpy as np
 
 import logbook
-
-from numpy import (
-    array,
-    full,
-    iinfo,
-    nan,
-)
-from pandas import (
-    DatetimeIndex,
-    NaT,
-    read_csv,
-    to_datetime,
-    Timestamp,
-)
+import numpy as np
+import pandas as pd
 from toolz import compose
-from zipline.utils.calendar_utils import get_calendar
-
+from zipline.data.bar_reader import NoDataAfterDate, NoDataBeforeDate, NoDataOnDate
 from zipline.data.session_bars import CurrencyAwareSessionBarReader
-from zipline.data.bar_reader import (
-    NoDataAfterDate,
-    NoDataBeforeDate,
-    NoDataOnDate,
-)
+from zipline.utils.calendar_utils import get_calendar
+from zipline.utils.cli import maybe_show_progress
 from zipline.utils.functional import apply
 from zipline.utils.input_validation import expect_element
-from zipline.utils.numpy_utils import iNaT, float64_dtype, uint32_dtype
 from zipline.utils.memoize import lazyval
-from zipline.utils.cli import maybe_show_progress
+from zipline.utils.numpy_utils import float64_dtype, iNaT, uint32_dtype
+
 from ._equities import _compute_row_slices, _read_bcolz_data
 
 logger = logbook.Logger("UsEquityPricing")
@@ -63,7 +46,7 @@ US_EQUITY_PRICING_BCOLZ_COLUMNS = (
     "id",
 )
 
-UINT32_MAX = iinfo(np.uint32).max
+UINT32_MAX = np.iinfo(np.uint32).max
 
 
 def check_uint32_safe(value, colname):
@@ -227,7 +210,7 @@ class BcolzDailyBarWriter:
             a uint32.
         """
         read = partial(
-            read_csv,
+            pd.read_csv,
             parse_dates=["day"],
             index_col="day",
             dtype=self._csv_dtypes,
@@ -252,7 +235,7 @@ class BcolzDailyBarWriter:
 
         # Maps column name -> output carray.
         columns = {
-            k: carray(array([], dtype=uint32_dtype))
+            k: carray(np.array([], dtype=uint32_dtype))
             for k in US_EQUITY_PRICING_BCOLZ_COLUMNS
         }
 
@@ -277,7 +260,7 @@ class BcolzDailyBarWriter:
                     # We know what the content of this column is, so don't
                     # bother reading it.
                     columns["id"].append(
-                        full((nrows,), asset_id, dtype="uint32"),
+                        np.full((nrows,), asset_id, dtype="uint32"),
                     )
                     continue
 
@@ -301,7 +284,7 @@ class BcolzDailyBarWriter:
 
             table_day_to_session = compose(
                 self._calendar.minute_to_session_label,
-                partial(Timestamp, unit="s", tz="UTC"),
+                partial(pd.Timestamp, unit="s", tz="UTC"),
             )
             asset_first_day = table_day_to_session(table["day"][0])
             asset_last_day = table_day_to_session(table["day"][-1])
@@ -319,13 +302,13 @@ class BcolzDailyBarWriter:
                     asset_last_day.date(),
                     len(asset_sessions),
                     asset_sessions.difference(
-                        to_datetime(
+                        pd.to_datetime(
                             np.array(table["day"]),
                             unit="s",
                             utc=True,
                         )
                     ).tolist(),
-                    to_datetime(
+                    pd.to_datetime(
                         np.array(table["day"]),
                         unit="s",
                         utc=True,
@@ -469,14 +452,14 @@ class BcolzDailyBarReader(CurrencyAwareSessionBarReader):
     def sessions(self):
         if "calendar" in self._table.attrs.attrs:
             # backwards compatibility with old formats, will remove
-            return DatetimeIndex(self._table.attrs["calendar"], tz="UTC")
+            return pd.DatetimeIndex(self._table.attrs["calendar"], tz="UTC")
         else:
             cal = get_calendar(self._table.attrs["calendar_name"])
             start_session_ns = self._table.attrs["start_session_ns"]
-            start_session = Timestamp(start_session_ns, tz="UTC")
+            start_session = pd.Timestamp(start_session_ns, tz="UTC")
 
             end_session_ns = self._table.attrs["end_session_ns"]
-            end_session = Timestamp(end_session_ns, tz="UTC")
+            end_session = pd.Timestamp(end_session_ns, tz="UTC")
 
             sessions = cal.sessions_in_range(start_session, end_session)
 
@@ -506,7 +489,9 @@ class BcolzDailyBarReader(CurrencyAwareSessionBarReader):
     @lazyval
     def first_trading_day(self):
         try:
-            return Timestamp(self._table.attrs["first_trading_day"], unit="s", tz="UTC")
+            return pd.Timestamp(
+                self._table.attrs["first_trading_day"], unit="s", tz="UTC"
+            )
         except KeyError:
             return None
 
@@ -620,21 +605,21 @@ class BcolzDailyBarReader(CurrencyAwareSessionBarReader):
             try:
                 ix = self.sid_day_index(asset, search_day)
             except NoDataBeforeDate:
-                return NaT
+                return pd.NaT
             except NoDataAfterDate:
                 prev_day_ix = self.sessions.get_loc(search_day) - 1
                 if prev_day_ix > -1:
                     search_day = self.sessions[prev_day_ix]
                 continue
             except NoDataOnDate:
-                return NaT
+                return pd.NaT
             if volumes[ix] != 0:
                 return search_day
             prev_day_ix = self.sessions.get_loc(search_day) - 1
             if prev_day_ix > -1:
                 search_day = self.sessions[prev_day_ix]
             else:
-                return NaT
+                return pd.NaT
 
     def sid_day_index(self, sid, day):
         """
@@ -694,7 +679,7 @@ class BcolzDailyBarReader(CurrencyAwareSessionBarReader):
         price = self._spot_col(field)[ix]
         if field != "volume":
             if price == 0:
-                return nan
+                return np.nan
             else:
                 return price * 0.001
         else:
