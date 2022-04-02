@@ -68,7 +68,7 @@ UINT32_MAX = iinfo(np.uint32).max
 
 def check_uint32_safe(value, colname):
     if value >= UINT32_MAX:
-        raise ValueError("Value %s from column '%s' is too large" % (value, colname))
+        raise ValueError(f"Value {value} from column {colname!r} is too large")
 
 
 @expect_element(invalid_data_behavior={"warn", "raise", "ignore"})
@@ -158,9 +158,9 @@ class BcolzDailyBarWriter:
 
         if start_session != end_session:
             if not calendar.is_session(start_session):
-                raise ValueError("Start session %s is invalid!" % start_session)
+                raise ValueError(f"Start session {start_session} is invalid!")
             if not calendar.is_session(end_session):
-                raise ValueError("End session %s is invalid!" % end_session)
+                raise ValueError(f"End session {end_session} is invalid!")
 
         self._start_session = start_session
         self._end_session = end_session
@@ -175,7 +175,11 @@ class BcolzDailyBarWriter:
         return value if value is None else str(value[0])
 
     def write(
-        self, data, assets=None, show_progress=False, invalid_data_behavior="warn"
+        self,
+        data,
+        assets=None,
+        show_progress=False,
+        invalid_data_behavior="warn",
     ):
         """
         Parameters

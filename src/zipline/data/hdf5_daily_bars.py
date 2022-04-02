@@ -231,7 +231,13 @@ class HDF5DailyBarWriter:
     def h5_file(self, mode):
         return h5py.File(self._filename, mode)
 
-    def write(self, country_code, frames, currency_codes=None, scaling_factors=None):
+    def write(
+        self,
+        country_code,
+        frames,
+        currency_codes=None,
+        scaling_factors=None,
+    ):
         """
         Write the OHLCV data for one country to the HDF5 file.
 
@@ -415,10 +421,8 @@ class HDF5DailyBarWriter:
 
             dataset.attrs[SCALING_FACTOR] = scaling_factors[field]
 
-            log.debug("Writing dataset {} to file {}", dataset.name, self._filename)
-
     def _log_writing_dataset(self, dataset):
-        log.debug("Writing {} to file {}", dataset.name, self._filename)
+        log.debug(f"Writing {dataset.name} to file {self._filename}")
 
 
 def compute_asset_lifetimes(frames):
