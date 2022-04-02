@@ -3,30 +3,11 @@ Utilities for working with numpy arrays.
 """
 from collections import OrderedDict
 from datetime import datetime
-from packaging.version import Version
-from warnings import (
-    catch_warnings,
-    filterwarnings,
-)
+from warnings import catch_warnings, filterwarnings
 
 import numpy as np
-
-# from numpy import (
-#     array_equal,
-#     broadcast,
-#     busday_count,
-#     datetime64,
-#     diff,
-#     dtype,
-#     empty,
-#     flatnonzero,
-#     hstack,
-#     isnan,
-#     nan,
-#     vectorize,
-#     where,
-# )
 from numpy.lib.stride_tricks import as_strided
+from packaging.version import Version
 from toolz import flip
 
 numpy_version = Version(np.__version__)
