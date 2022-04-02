@@ -2,11 +2,11 @@
 factor.py
 """
 import math
-from numbers import Number
+import numpy as np
 from operator import attrgetter
+from numbers import Number
 from textwrap import dedent
 
-import numpy as np
 from scipy.stats import rankdata
 from zipline.errors import BadPercentileBounds, UnknownRankMethod, UnsupportedDataType
 from zipline.lib.normalize import naive_grouped_rowwise_apply
@@ -1847,8 +1847,8 @@ def demean(row):
 
 
 def zscore(row):
-    # with np.errstate(divide="ignore", invalid="ignore"):
-    return (row - nanmean(row)) / nanstd(row)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        return (row - nanmean(row)) / nanstd(row)
 
 
 def winsorize(row, min_percentile, max_percentile):

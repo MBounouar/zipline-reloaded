@@ -337,5 +337,7 @@ def check_indexes_all_same(indexes, message="Indexes are not equal."):
             bad_loc = np.flatnonzero(~same)[0]
             raise ValueError(
                 "{}\nFirst difference is at index {}: "
-                "{} != {}".format(message, bad_loc, first[bad_loc], other[bad_loc]),
+                "{} != {}".format(
+                    message, bad_loc, first[bad_loc], other[bad_loc]
+                ),
             )

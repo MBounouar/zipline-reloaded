@@ -122,7 +122,9 @@ def unsigned_int_dtype_with_size_in_bytes(size):
     try:
         return UNSIGNED_INT_DTYPES_BY_SIZE_BYTES[size]
     except KeyError:
-        raise ValueError("No unsigned integral dtype whose size is %d bytes." % size)
+        raise ValueError(
+            "No unsigned integral dtype whose size is %d bytes." % size
+        )
 
 
 class NoDefaultMissingValue(Exception):
@@ -162,7 +164,9 @@ def coerce_to_dtype(dtype, value):
         elif name == "datetime64[ns]":
             return make_datetime64ns(value)
         else:
-            raise TypeError("Don't know how to coerce values of dtype %s" % dtype)
+            raise TypeError(
+                "Don't know how to coerce values of dtype %s" % dtype
+            )
     return dtype.type(value)
 
 
@@ -173,7 +177,9 @@ def default_missing_value_for_dtype(dtype):
     try:
         return _FILLVALUE_DEFAULTS[dtype]
     except KeyError:
-        raise NoDefaultMissingValue("No default value registered for dtype %s." % dtype)
+        raise NoDefaultMissingValue(
+            "No default value registered for dtype %s." % dtype
+        )
 
 
 def repeat_first_axis(array, count):
