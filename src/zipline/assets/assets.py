@@ -24,7 +24,6 @@ import struct
 from logbook import Logger
 import numpy as np
 import pandas as pd
-from pandas import isnull
 import sqlalchemy as sa
 from toolz import (
     compose,
@@ -219,7 +218,7 @@ def _convert_asset_timestamp_fields(dict_):
     """
     for key in _asset_timestamp_fields & dict_.keys():
         value = pd.Timestamp(dict_[key], tz="UTC")
-        dict_[key] = None if isnull(value) else value
+        dict_[key] = None if pd.isnull(value) else value
     return dict_
 
 

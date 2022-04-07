@@ -1,15 +1,12 @@
+import sqlite3
 from collections import namedtuple
 from errno import ENOENT
 from os import remove
 
-from logbook import Logger
 import numpy as np
-from numpy import integer as any_integer
 import pandas as pd
-from pandas import Timestamp
-import sqlite3
 import sqlalchemy as sa
-
+from logbook import Logger
 from zipline.utils.functional import keysorted
 from zipline.utils.input_validation import preprocess
 from zipline.utils.numpy_utils import (
@@ -20,7 +17,8 @@ from zipline.utils.numpy_utils import (
     uint64_dtype,
 )
 from zipline.utils.pandas_utils import empty_dataframe
-from zipline.utils.sqlite_utils import group_into_chunks, coerce_string_to_conn
+from zipline.utils.sqlite_utils import coerce_string_to_conn, group_into_chunks
+
 from ._adjustments import load_adjustments_from_sqlite
 
 log = Logger(__name__)
@@ -45,27 +43,27 @@ StockDividend = namedtuple(
 )
 
 SQLITE_ADJUSTMENT_COLUMN_DTYPES = {
-    "effective_date": any_integer,
+    "effective_date": np.integer,
     "ratio": float64_dtype,
-    "sid": any_integer,
+    "sid": np.integer,
 }
 
 SQLITE_DIVIDEND_PAYOUT_COLUMN_DTYPES = {
-    "sid": any_integer,
-    "ex_date": any_integer,
-    "declared_date": any_integer,
-    "record_date": any_integer,
-    "pay_date": any_integer,
+    "sid": np.integer,
+    "ex_date": np.integer,
+    "declared_date": np.integer,
+    "record_date": np.integer,
+    "pay_date": np.integer,
     "amount": float,
 }
 
 SQLITE_STOCK_DIVIDEND_PAYOUT_COLUMN_DTYPES = {
-    "sid": any_integer,
-    "ex_date": any_integer,
-    "declared_date": any_integer,
-    "record_date": any_integer,
-    "pay_date": any_integer,
-    "payment_sid": any_integer,
+    "sid": np.integer,
+    "ex_date": np.integer,
+    "declared_date": np.integer,
+    "record_date": np.integer,
+    "pay_date": np.integer,
+    "payment_sid": np.integer,
     "ratio": float,
 }
 
@@ -73,7 +71,7 @@ SQLITE_STOCK_DIVIDEND_PAYOUT_COLUMN_DTYPES = {
 def specialize_any_integer(d):
     out = {}
     for k, v in d.items():
-        if v is any_integer:
+        if v is np.integer:
             out[k] = int64_dtype
         else:
             out[k] = v
@@ -219,7 +217,7 @@ class SQLiteAdjustmentReader:
         c.close()
 
         return [
-            [Timestamp(adjustment[0], unit="s", tz="UTC"), adjustment[1]]
+            [pd.Timestamp(adjustment[0], unit="s", tz="UTC"), adjustment[1]]
             for adjustment in adjustments_for_sid
         ]
 
@@ -239,7 +237,7 @@ class SQLiteAdjustmentReader:
                 div = Dividend(
                     asset_finder.retrieve_asset(row[0]),
                     row[1],
-                    Timestamp(row[2], unit="s", tz="UTC"),
+                    pd.Timestamp(row[2], unit="s", tz="UTC"),
                 )
                 divs.append(div)
         c.close()
@@ -266,7 +264,7 @@ class SQLiteAdjustmentReader:
                     asset_finder.retrieve_asset(row[0]),  # asset
                     asset_finder.retrieve_asset(row[1]),  # payment_asset
                     row[2],
-                    Timestamp(row[3], unit="s", tz="UTC"),
+                    pd.Timestamp(row[3], unit="s", tz="UTC"),
                 )
                 stock_divs.append(stock_div)
         c.close()
