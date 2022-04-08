@@ -12,23 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from abc import (
-    ABCMeta,
-    abstractmethod,
-    abstractproperty,
-)
+from abc import ABCMeta, abstractmethod, abstractproperty
 
-from numpy import concatenate
+import pandas as pd
+import numpy as np
 from lru import LRU
-from pandas import isnull
 from toolz import sliding_window
-
-
 from zipline.assets import Equity, Future
 from zipline.assets.continuous_futures import ContinuousFuture
-from zipline.lib._int64window import AdjustedArrayWindow as Int64Window
 from zipline.lib._float64window import AdjustedArrayWindow as Float64Window
-from zipline.lib.adjustment import Float64Multiply, Float64Add
+from zipline.lib._int64window import AdjustedArrayWindow as Int64Window
+from zipline.lib.adjustment import Float64Add, Float64Multiply
 from zipline.utils.cache import ExpiringCache
 from zipline.utils.math_utils import number_of_decimal_places
 from zipline.utils.memoize import lazyval
@@ -209,7 +203,7 @@ class ContinuousFutureAdjustmentReader:
             last_back_dt = self._bar_reader.get_last_traded_dt(
                 self._asset_finder.retrieve_asset(back_sid), dt
             )
-            if isnull(last_front_dt) or isnull(last_back_dt):
+            if pd.isnull(last_front_dt) or pd.isnull(last_back_dt):
                 continue
             front_close = self._bar_reader.get_value(front_sid, last_front_dt, "close")
             back_close = self._bar_reader.get_value(back_sid, last_back_dt, "close")
@@ -524,7 +518,7 @@ class HistoryLoader(metaclass=ABCMeta):
         block = self._ensure_sliding_windows(assets, dts, field, is_perspective_after)
         end_ix = self._calendar.searchsorted(dts[-1])
 
-        return concatenate(
+        return np.concatenate(
             [window.get(end_ix) for window in block],
             axis=1,
         )

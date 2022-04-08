@@ -16,7 +16,6 @@ from collections import OrderedDict
 from textwrap import dedent
 from parameterized import parameterized
 import numpy as np
-from numpy import nan
 import pandas as pd
 
 from zipline._protocol import handle_non_market_minutes, BarData
@@ -695,7 +694,7 @@ class MinuteEquityHistoryTestCase(WithHistory, zf.WithMakeAlgo, zf.ZiplineTestCa
             "minute",
         )[asset]
 
-        np.testing.assert_array_equal(np.array([nan, 391]), window1)
+        np.testing.assert_array_equal(np.array([np.nan, 391]), window1)
 
         # straddling the first event
         window2 = self.data_portal.get_history_window(
@@ -1404,7 +1403,7 @@ class MinuteEquityHistoryTestCase(WithHistory, zf.WithMakeAlgo, zf.ZiplineTestCa
                     elif field == "price":
                         last_val = window[1]
                     else:
-                        last_val = nan
+                        last_val = np.nan
                 elif field == "open":
                     last_val = 783
                 elif field == "high":
@@ -1487,7 +1486,7 @@ class MinuteEquityHistoryTestCase(WithHistory, zf.WithMakeAlgo, zf.ZiplineTestCa
                 elif field == "price":
                     last_val = window[1]
                 else:
-                    last_val = nan
+                    last_val = np.nan
             elif field == "open":
                 if idx == 0:
                     last_val = np.nan
@@ -2089,7 +2088,7 @@ class DailyEquityHistoryTestCase(WithHistory, zf.ZiplineTestCase):
             # If not on the NYSE calendar, it is possible that MLK day
             # (2014-01-20) is an active trading session. In that case,
             # we expect a nan value for this asset.
-            assert_window_prices(window_4, [12, nan, 13, 14])
+            assert_window_prices(window_4, [12, np.nan, 13, 14])
 
 
 class NoPrefetchDailyEquityHistoryTestCase(DailyEquityHistoryTestCase):

@@ -58,28 +58,21 @@ implements the following algorithm for executing pipelines:
 from abc import ABCMeta, abstractmethod
 from functools import partial
 
-from numpy import array, arange
-from pandas import DataFrame, MultiIndex
+import numpy as np
+import pandas as pd
 from toolz import groupby
-
-from zipline.lib.adjusted_array import ensure_adjusted_array, ensure_ndarray
 from zipline.errors import NoFurtherDataError
+from zipline.lib.adjusted_array import ensure_adjusted_array, ensure_ndarray
+from zipline.utils.date_utils import compute_date_range_chunks
 from zipline.utils.input_validation import expect_types
-from zipline.utils.numpy_utils import (
-    as_column,
-    repeat_first_axis,
-    repeat_last_axis,
-)
-from zipline.utils.pandas_utils import explode
+from zipline.utils.numpy_utils import as_column, repeat_first_axis, repeat_last_axis
+from zipline.utils.pandas_utils import categorical_df_concat, explode
 from zipline.utils.string_formatting import bulleted_list
 
-from .domain import Domain, GENERIC
+from .domain import GENERIC, Domain
 from .graph import maybe_specialize
 from .hooks import DelegatingHooks
 from .term import AssetExists, InputDates, LoadableTerm
-
-from zipline.utils.date_utils import compute_date_range_chunks
-from zipline.utils.pandas_utils import categorical_df_concat
 
 
 class PipelineEngine(metaclass=ABCMeta):
@@ -764,10 +757,12 @@ class SimplePipelineEngine(PipelineEngine):
             #
             # Slicing `dates` here to preserve pandas metadata.
             empty_dates = dates[:0]
-            empty_assets = array([], dtype=object)
-            return DataFrame(
-                data={name: array([], dtype=arr.dtype) for name, arr in data.items()},
-                index=MultiIndex.from_arrays([empty_dates, empty_assets]),
+            empty_assets = np.array([], dtype=object)
+            return pd.DataFrame(
+                data={
+                    name: np.array([], dtype=arr.dtype) for name, arr in data.items()
+                },
+                index=pd.MultiIndex.from_arrays([empty_dates, empty_assets]),
             )
 
         final_columns = {}
@@ -779,10 +774,10 @@ class SimplePipelineEngine(PipelineEngine):
             # LabelArrays into categoricals.
             final_columns[name] = terms[name].postprocess(data[name][mask])
 
-        resolved_assets = array(self._finder.retrieve_all(assets))
+        resolved_assets = np.array(self._finder.retrieve_all(assets))
         index = _pipeline_output_index(dates, resolved_assets, mask)
 
-        return DataFrame(data=final_columns, index=index)
+        return pd.DataFrame(data=final_columns, index=index)
 
     def _validate_compute_chunk_params(self, graph, dates, sids, initial_workspace):
         """
@@ -912,9 +907,9 @@ def _pipeline_output_index(dates, assets, mask):
         MultiIndex  containing (date,  asset) pairs  corresponding to  ``True``
         values in ``mask``.
     """
-    date_labels = repeat_last_axis(arange(len(dates)), len(assets))[mask]
-    asset_labels = repeat_first_axis(arange(len(assets)), len(dates))[mask]
-    return MultiIndex(
+    date_labels = repeat_last_axis(np.arange(len(dates)), len(assets))[mask]
+    asset_labels = repeat_first_axis(np.arange(len(assets)), len(dates))[mask]
+    return pd.MultiIndex(
         [dates, assets],
         [date_labels, asset_labels],
         # TODO: We should probably add names for these.

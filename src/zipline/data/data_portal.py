@@ -12,16 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from functools import reduce
 from operator import mul
 
-from logbook import Logger
-
 import numpy as np
-from numpy import float64, int64, nan
 import pandas as pd
+from logbook import Logger
 from pandas import isnull
-from functools import reduce
-
 from zipline.assets import (
     Asset,
     AssetConvertible,
@@ -30,33 +27,25 @@ from zipline.assets import (
     PricingDataAssociable,
 )
 from zipline.assets.continuous_futures import ContinuousFuture
+from zipline.assets.roll_finder import CalendarRollFinder, VolumeRollFinder
+from zipline.data.bar_reader import NoDataOnDate
 from zipline.data.continuous_future_reader import (
-    ContinuousFutureSessionBarReader,
     ContinuousFutureMinuteBarReader,
-)
-from zipline.assets.roll_finder import (
-    CalendarRollFinder,
-    VolumeRollFinder,
+    ContinuousFutureSessionBarReader,
 )
 from zipline.data.dispatch_bar_reader import (
     AssetDispatchMinuteBarReader,
     AssetDispatchSessionBarReader,
 )
+from zipline.data.history_loader import DailyHistoryLoader, MinuteHistoryLoader
 from zipline.data.resample import (
     DailyHistoryAggregator,
     ReindexMinuteBarReader,
     ReindexSessionBarReader,
 )
-from zipline.data.history_loader import (
-    DailyHistoryLoader,
-    MinuteHistoryLoader,
-)
-from zipline.data.bar_reader import NoDataOnDate
-
+from zipline.errors import HistoryWindowStartsBeforeData
 from zipline.utils.memoize import remember_last
 from zipline.utils.pandas_utils import normalize_date
-from zipline.errors import HistoryWindowStartsBeforeData
-
 
 log = Logger("DataPortal")
 
@@ -943,7 +932,7 @@ class DataPortal:
                     ffill_data_frequency,
                 )
                 if isnull(last_traded):
-                    initial_values.append(nan)
+                    initial_values.append(np.nan)
                 else:
                     initial_values.append(
                         self.get_adjusted_value(
@@ -969,7 +958,7 @@ class DataPortal:
                 if history_end >= asset.end_date:
                     # if the window extends past the asset's end date, set
                     # all post-end-date values to NaN in that asset's series
-                    df.loc[normed_index > asset.end_date, asset] = nan
+                    df.loc[normed_index > asset.end_date, asset] = np.nan
         return df
 
     def _get_minute_window_data(self, assets, field, minutes_for_window):
@@ -1034,7 +1023,7 @@ class DataPortal:
         """
         bar_count = len(days_in_window)
         # create an np.array of size bar_count
-        dtype = float64 if field != "sid" else int64
+        dtype = np.float64 if field != "sid" else np.int64
         if extra_slot:
             return_array = np.zeros((bar_count + 1, len(assets)), dtype=dtype)
         else:
@@ -1042,7 +1031,7 @@ class DataPortal:
 
         if field != "volume":
             # volumes default to 0, so we don't need to put NaNs in the array
-            return_array = return_array.astype(float64)
+            return_array = return_array.astype(np.float64)
             return_array[:] = np.NAN
 
         if bar_count != 0:

@@ -1,32 +1,25 @@
 """
 An ndarray subclass for working with arrays of strings.
 """
+import re
 from functools import partial, total_ordering
 from operator import eq, ne
-import re
 
 import numpy as np
-from numpy import ndarray
 import pandas as pd
 from toolz import compose
-
 from zipline.utils.compat import unicode
 from zipline.utils.functional import instance
-from zipline.utils.preprocess import preprocess
-from zipline.utils.sentinel import sentinel
-from zipline.utils.input_validation import (
-    coerce,
-    expect_kinds,
-    expect_types,
-    optional,
-)
+from zipline.utils.input_validation import coerce, expect_kinds, expect_types, optional
 from zipline.utils.numpy_utils import (
     bool_dtype,
-    unsigned_int_dtype_with_size_in_bytes,
     is_object,
     object_dtype,
+    unsigned_int_dtype_with_size_in_bytes,
 )
 from zipline.utils.pandas_utils import ignore_pandas_nan_categorical_warning
+from zipline.utils.preprocess import preprocess
+from zipline.utils.sentinel import sentinel
 
 from ._factorize import (
     factorize_strings,
@@ -86,7 +79,7 @@ class CategoryMismatch(ValueError):
 _NotPassed = sentinel("_NotPassed")
 
 
-class LabelArray(ndarray):
+class LabelArray(np.ndarray):
     """
     An ndarray subclass for working with arrays of strings.
 
@@ -305,7 +298,7 @@ class LabelArray(ndarray):
         This is an O(1) operation. It does not copy the underlying data.
         """
         return self.view(
-            type=ndarray,
+            type=np.ndarray,
             dtype=unsigned_int_dtype_with_size_in_bytes(self.itemsize),
         )
 
@@ -468,7 +461,7 @@ class LabelArray(ndarray):
                     & other.not_missing()
                 )
 
-            elif isinstance(other, ndarray):
+            elif isinstance(other, np.ndarray):
                 # Compare to ndarrays as though we were an array of strings.
                 # This is fairly expensive, and should generally be avoided.
                 return op(self.as_string_array(), other) & self.not_missing()
@@ -567,7 +560,7 @@ class LabelArray(ndarray):
         ]
     )
     PUBLIC_NDARRAY_METHODS = frozenset(
-        [s for s in dir(ndarray) if not s.startswith("_")]
+        [s for s in dir(np.ndarray) if not s.startswith("_")]
     )
 
     # Generate failing wrappers for all unsupported methods.

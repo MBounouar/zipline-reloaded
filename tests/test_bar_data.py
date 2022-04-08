@@ -17,7 +17,6 @@ from itertools import chain
 
 from parameterized import parameterized
 import numpy as np
-from numpy import nan
 from numpy.testing import assert_almost_equal
 import pandas as pd
 from toolz import concat
@@ -1050,12 +1049,12 @@ class TestDailyBarData(
             assert not bar_data.is_stale(asset)
 
             if asset in (1, 2):
-                assert_almost_equal(nan, bar_data.current(asset, "open"))
-                assert_almost_equal(nan, bar_data.current(asset, "high"))
-                assert_almost_equal(nan, bar_data.current(asset, "low"))
-                assert_almost_equal(nan, bar_data.current(asset, "close"))
+                assert_almost_equal(np.nan, bar_data.current(asset, "open"))
+                assert_almost_equal(np.nan, bar_data.current(asset, "high"))
+                assert_almost_equal(np.nan, bar_data.current(asset, "low"))
+                assert_almost_equal(np.nan, bar_data.current(asset, "close"))
                 assert_almost_equal(0, bar_data.current(asset, "volume"))
-                assert_almost_equal(nan, bar_data.current(asset, "price"))
+                assert_almost_equal(np.nan, bar_data.current(asset, "price"))
             else:
                 assert 6 == bar_data.current(asset, "open")
                 assert 7 == bar_data.current(asset, "high")
