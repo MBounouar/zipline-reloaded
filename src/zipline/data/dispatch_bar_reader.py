@@ -14,8 +14,7 @@
 # limitations under the License.
 from abc import ABCMeta, abstractmethod
 
-from numpy import full, nan, int64, zeros
-
+import numpy as np
 from zipline.utils.memoize import lazyval
 
 
@@ -49,10 +48,8 @@ class AssetDispatchBarReader(metaclass=ABCMeta):
         for t, r in self._readers.items():
             assert trading_calendar == r.trading_calendar, (
                 "All readers must share target trading_calendar. "
-                "Reader={0} for type={1} uses calendar={2} which does not "
-                "match the desired shared calendar={3} ".format(
-                    r, t, r.trading_calendar, trading_calendar
-                )
+                f"Reader={r} for type={t} uses calendar={r.trading_calendar} which does not "
+                f"match the desired shared calendar={trading_calendar} "
             )
 
     @abstractmethod
@@ -68,9 +65,9 @@ class AssetDispatchBarReader(metaclass=ABCMeta):
 
     def _make_raw_array_out(self, field, shape):
         if field != "volume" and field != "sid":
-            out = full(shape, nan)
+            out = np.full(shape, np.nan)
         else:
-            out = zeros(shape, dtype=int64)
+            out = np.zeros(shape, dtype=np.int64)
         return out
 
     @property

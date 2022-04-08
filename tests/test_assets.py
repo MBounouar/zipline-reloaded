@@ -402,19 +402,23 @@ def set_test_vectorized_symbol_lookup(request, with_asset_finder):
     )
 
 
-@pytest.fixture(scope="function")
-def set_test_write(request, tmp_path):
-    request.cls.assets_db_path = path = os.path.join(
-        str(tmp_path),
-        "assets.db",
-    )
-    request.cls.writer = AssetDBWriter(path)
+# @pytest.fixture(scope="function")
+# def set_test_write(request, tmp_path):
+#     request.cls.assets_db_path = path = os.path.join(
+#         str(tmp_path),
+#         "assets.db",
+#     )
+#     request.cls.writer = AssetDBWriter(path)
 
 
 @pytest.fixture(scope="function")
-def asset_finder(
-    sql_db,
-):
+def set_test_write(request, sql_db):
+    request.cls.assets_db_path = sql_db
+    request.cls.writer = AssetDBWriter(sql_db)
+
+
+@pytest.fixture(scope="function")
+def asset_finder(sql_db):
     def asset_finder(**kwargs):
         AssetDBWriter(sql_db).write(**kwargs)
         return AssetFinder(sql_db)
@@ -2022,14 +2026,16 @@ class TestAssetFinderMultipleCountries:
             assert result.sid == n * 2 + 1
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="function", params=["sqlite", "postgresql"])
 def sql_db(request, postgresql):
-    url = "sqlite:///:memory:"
-    request.cls.engine = sa.create_engine(url)
-    # connection = f"postgresql://{postgresql.info.user}:@{postgresql.info.host}:{postgresql.info.port}/{postgresql.info.dbname}"
-    # request.cls.engine = sa.create_engine(
-    #     connection, echo=False, poolclass=sa.pool.NullPool
-    # )
+    if request.param == "sqlite":
+        connection = "sqlite:///:memory:"
+    elif request.param == "postgresql":
+        connection = f"postgresql://{postgresql.info.user}:@{postgresql.info.host}:{postgresql.info.port}/{postgresql.info.dbname}"
+    request.cls.engine = sa.create_engine(
+        connection,
+        # poolclass=sa.pool.NullPool
+    )
     yield request.cls.engine
     request.cls.engine.dispose()
     request.cls.engine = None
