@@ -1063,7 +1063,7 @@ class WithBcolzEquityDailyBarReader(WithEquityDailyBarData, WithTmpDir):
     def init_class_fixtures(cls):
         super(WithBcolzEquityDailyBarReader, cls).init_class_fixtures()
 
-        cls.bcolz_daily_bar_path = p = cls.make_bcolz_daily_bar_rootdir_path()
+        cls.bcolz_daily_bar_path = filepath = cls.make_bcolz_daily_bar_rootdir_path()
 
         days = cls.equity_daily_bar_days
         sids = cls.asset_finder.equities_sids_for_country_code(
@@ -1072,7 +1072,7 @@ class WithBcolzEquityDailyBarReader(WithEquityDailyBarData, WithTmpDir):
 
         trading_calendar = cls.trading_calendars[Equity]
         cls.bcolz_daily_bar_ctable = t = getattr(
-            BcolzDailyBarWriter(p, trading_calendar, days[0], days[-1]),
+            BcolzDailyBarWriter(filepath, trading_calendar, days[0], days[-1]),
             cls._write_method_name,
         )(
             cls.make_equity_daily_bar_data(
@@ -1244,6 +1244,7 @@ class WithWriteHDF5DailyBars(WithEquityDailyBarData, WithTmpDir):
             writer,
             cls.asset_finder,
             country_codes,
+            dict(zip(country_codes, cls.exchange_names)),
             cls.make_equity_daily_bar_data,
             cls.make_equity_daily_bar_currency_codes,
         )
