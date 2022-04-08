@@ -26,6 +26,7 @@ import pytz
 import zipline.utils.factory as factory
 from testfixtures import TempDirectory
 from zipline.data.bcolz_daily_bars import BcolzDailyBarReader, BcolzDailyBarWriter
+from zipline.data.hdf5_daily_bars import HDF5DailyBarReader, HDF5DailyBarWriter
 from zipline.data.data_portal import DataPortal
 from zipline.data.minute_bars import BcolzMinuteBarReader
 from zipline.finance.asset_restrictions import NoRestrictions
@@ -131,7 +132,7 @@ class TestFinance:
 
         self.transaction_sim(**params2)
 
-    @pytest.mark.timeout(DEFAULT_TIMEOUT)
+    # @pytest.mark.timeout(DEFAULT_TIMEOUT)
     def test_collapsing_orders(self):
         # create a scenario where order.amount <<< trade.volume
         # to test that several orders can be covered properly by one trade,
@@ -277,12 +278,15 @@ class TestFinance:
                     )
                 }
 
-                path = os.path.join(tempdir.path, "testdata.bcolz")
-                BcolzDailyBarWriter(
-                    path, self.trading_calendar, days[0], days[-1]
-                ).write(assets.items())
+                path = os.path.join(tempdir.path, "testdata.h5")
+                #### TODO : CLEANUP AND FINISH
+                HDF5DailyBarWriter(path, 30).write_from_sid_df_pairs(
+                    "US",
+                    assets.items(),
+                    exchange_name=self.trading_calendar.name,
+                )
 
-                equity_daily_reader = BcolzDailyBarReader(path)
+                equity_daily_reader = HDF5DailyBarReader.from_path(path, "US")
 
                 data_portal = DataPortal(
                     self.asset_finder,

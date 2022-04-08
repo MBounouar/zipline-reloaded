@@ -1,32 +1,25 @@
-from collections import namedtuple
 import errno
 import os
 import shutil
 import warnings
+from collections import namedtuple
 
 import click
-from logbook import Logger
 import pandas as pd
+import zipline.utils.paths as pth
+from logbook import Logger
+from toolz import complement, curry, take
+from zipline.assets import ASSET_DB_VERSION, AssetDBWriter, AssetFinder
+from zipline.assets.asset_db_migrations import downgrade
+from zipline.utils.cache import dataframe_cache, working_dir, working_file
 from zipline.utils.calendar_utils import get_calendar
-from toolz import curry, complement, take
+from zipline.utils.compat import ExitStack, mappingproxy
+from zipline.utils.input_validation import ensure_timestamp, optionally
+from zipline.utils.preprocess import preprocess
 
 from ..adjustments import SQLiteAdjustmentReader, SQLiteAdjustmentWriter
 from ..bcolz_daily_bars import BcolzDailyBarReader, BcolzDailyBarWriter
-from ..minute_bars import (
-    BcolzMinuteBarReader,
-    BcolzMinuteBarWriter,
-)
-from zipline.assets import AssetDBWriter, AssetFinder, ASSET_DB_VERSION
-from zipline.assets.asset_db_migrations import downgrade
-from zipline.utils.cache import (
-    dataframe_cache,
-    working_dir,
-    working_file,
-)
-from zipline.utils.compat import ExitStack, mappingproxy
-from zipline.utils.input_validation import ensure_timestamp, optionally
-import zipline.utils.paths as pth
-from zipline.utils.preprocess import preprocess
+from ..minute_bars import BcolzMinuteBarReader, BcolzMinuteBarWriter
 
 log = Logger(__name__)
 
