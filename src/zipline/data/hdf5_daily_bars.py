@@ -75,8 +75,11 @@ Sample layout of the full file with multiple countries.
    |  |  |- /end_date
    |  |
    |  |- /currency
-   |     |- /code
-   |
+   |  |  |- /code
+   |  |
+   |  |- /trading_calendar
+   |  |  |- /exchange_name
+   |  |
    |- /CA
       |- /data
       |  |- /open
@@ -94,7 +97,10 @@ Sample layout of the full file with multiple countries.
       |  |- /end_date
       |
       |- /currency
-         |- /code
+   |  |  |- /code
+   |  |
+   |  |- /trading_calendar
+   |  |  |- /exchange_name
 """
 
 from functools import partial
@@ -115,6 +121,7 @@ from zipline.data.session_bars import CurrencyAwareSessionBarReader
 from zipline.utils.memoize import lazyval
 from zipline.utils.numpy_utils import bytes_array_to_native_str_object_array
 from zipline.utils.pandas_utils import check_indexes_all_same
+from zipline.utils.calendar_utils import get_calendar
 
 log = logbook.Logger("HDF5DailyBars")
 
@@ -125,6 +132,7 @@ INDEX = "index"
 LIFETIMES = "lifetimes"
 CURRENCY = "currency"
 CODE = "code"
+TRADING_CALENDAR = "trading_calendar"
 
 SCALING_FACTOR = "scaling_factor"
 
@@ -235,6 +243,7 @@ class HDF5DailyBarWriter:
         self,
         country_code,
         frames,
+        exchange_name=None,
         currency_codes=None,
         scaling_factors=None,
     ):
@@ -273,6 +282,9 @@ class HDF5DailyBarWriter:
         if currency_codes is None:
             currency_codes = pd.Series(index=sids, data=MISSING_CURRENCY)
 
+        if exchange_name is None:
+            exchange_name = "XXX"
+
         # Currency codes should match dataframe columns.
         check_sids_arrays_match(
             sids,
@@ -296,12 +308,9 @@ class HDF5DailyBarWriter:
             country_group = h5_file.create_group(country_code)
 
             self._write_index_group(country_group, days, sids)
-            self._write_lifetimes_group(
-                country_group,
-                start_date_ixs,
-                end_date_ixs,
-            )
+            self._write_lifetimes_group(country_group, start_date_ixs, end_date_ixs)
             self._write_currency_group(country_group, currency_codes)
+            self._write_trading_calendar_group(country_group, exchange_name)
             self._write_data_group(
                 country_group,
                 frames,
@@ -310,7 +319,12 @@ class HDF5DailyBarWriter:
             )
 
     def write_from_sid_df_pairs(
-        self, country_code, data, currency_codes=None, scaling_factors=None
+        self,
+        country_code,
+        data,
+        currency_codes=None,
+        exchange_name=None,
+        scaling_factors=None,
     ):
         """
         Parameters
@@ -341,9 +355,10 @@ class HDF5DailyBarWriter:
                 columns=np.array([], dtype="int64"),
             )
             return self.write(
-                country_code,
-                {f: empty_frame.copy() for f in FIELDS},
-                scaling_factors,
+                country_code=country_code,
+                frames={f: empty_frame.copy() for f in FIELDS},
+                scaling_factors=scaling_factors,
+                exchange_name=exchange_name,
             )
 
         sids, frames = zip(*data)
@@ -362,6 +377,7 @@ class HDF5DailyBarWriter:
             frames=frames,
             scaling_factors=scaling_factors,
             currency_codes=currency_codes,
+            exchange_name=exchange_name,
         )
 
     def _write_index_group(self, country_group, days, sids):
@@ -392,6 +408,12 @@ class HDF5DailyBarWriter:
             CODE,
             data=currencies.values.astype(dtype="S3"),
         )
+
+    def _write_trading_calendar_group(self, country_group, calendar_name):
+        """Write /country/trading_calendar"""
+        trading_calendar_group = country_group.create_group(TRADING_CALENDAR)
+        trading_calendar_group.create_group(calendar_name)
+        self._log_writing_dataset(trading_calendar_group)
 
     def _write_data_group(self, country_group, frames, scaling_factors, chunks):
         """Write /country/data"""
@@ -679,6 +701,12 @@ class HDF5DailyBarReader(CurrencyAwareSessionBarReader):
         bytes_array = self._country_group[CURRENCY][CODE][:]
         return bytes_array_to_native_str_object_array(bytes_array)
 
+    @lazyval
+    def _trading_calendar(self):
+        calendar_name = list(self._country_group[TRADING_CALENDAR])[0]
+        if calendar_name != "XXX":
+            return get_calendar(calendar_name)
+
     def currency_codes(self, sids):
         """Get currencies in which prices are quoted for the requested sids.
 
@@ -721,9 +749,7 @@ class HDF5DailyBarReader(CurrencyAwareSessionBarReader):
         Returns the zipline.utils.calendar.trading_calendar used to read
         the data.  Can be None (if the writer didn't specify it).
         """
-        raise NotImplementedError(
-            "HDF5 pricing does not yet support trading calendars."
-        )
+        return self._trading_calendar
 
     @property
     def first_trading_day(self):
@@ -948,9 +974,7 @@ class MultiCountryDailyBarReader(CurrencyAwareSessionBarReader):
         Returns the zipline.utils.calendar.trading_calendar used to read
         the data.  Can be None (if the writer didn't specify it).
         """
-        raise NotImplementedError(
-            "HDF5 pricing does not yet support trading calendars."
-        )
+        return [reader.trading_calendar for reader in self._readers.values()]
 
     @property
     def first_trading_day(self):

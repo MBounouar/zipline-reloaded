@@ -1730,9 +1730,15 @@ def create_simple_domain(start, end, country_code):
 
 
 def write_hdf5_daily_bars(
-    writer, asset_finder, country_codes, generate_data, generate_currency_codes
+    writer,
+    asset_finder,
+    country_codes,
+    exchange_names,
+    generate_data,
+    generate_currency_codes,
 ):
     """Write an HDF5 file of pricing data using an HDF5DailyBarWriter."""
+
     asset_finder = asset_finder
     for country_code in country_codes:
         sids = asset_finder.equities_sids_for_country_code(country_code)
@@ -1763,9 +1769,10 @@ def write_hdf5_daily_bars(
             sids=data_sids,
         )
         writer.write_from_sid_df_pairs(
-            country_code,
-            iter(data),
+            country_code=country_code,
+            data=iter(data),
             currency_codes=currency_codes,
+            exchange_name=exchange_names[country_code],
         )
 
 
