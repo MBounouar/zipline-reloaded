@@ -148,11 +148,6 @@ def logbook_activation_strategy():
 
 
 @pytest.fixture(scope="class")
-def set_test_bundle_core(request, tmpdir_factory):
-    request.cls.environ = str(tmpdir_factory.mktemp("tmp"))
-
-
-@pytest.fixture(scope="class")
 def with_asset_finder(sql_db_class):
     def asset_finder(**kwargs):
         AssetDBWriter(sql_db_class).write(**kwargs)

@@ -1,17 +1,14 @@
+import operator as op
 import os
-import pytest
 import re
 
-from parameterized import parameterized
 import numpy as np
 import pandas as pd
+import pytest
 import sqlalchemy as sa
+import zipline.utils.paths as pth
 from toolz import valmap
-import operator as op
-from zipline.utils.calendar_utils import TradingCalendar, get_calendar
-
 from zipline.assets import ASSET_DB_VERSION
-
 from zipline.assets.asset_writer import check_version_info
 from zipline.assets.synthetic import make_simple_equity_info
 from zipline.data.bundles import (
@@ -20,89 +17,84 @@ from zipline.data.bundles import (
     ingestions_for_bundle,
 )
 from zipline.data.bundles.core import (
-    _make_bundle_core,
     BadClean,
-    to_bundle_ingest_dirname,
+    _make_bundle_core,
     asset_db_path,
+    to_bundle_ingest_dirname,
 )
 from zipline.lib.adjustment import Float64Multiply
-from zipline.pipeline.loaders.synthetic import (
-    make_bar_data,
-    expected_bar_values_2d,
-)
-from zipline.testing import (
-    subtest,
-    str_to_seconds,
-)
-from zipline.testing.fixtures import (
-    WithInstanceTmpDir,
-    ZiplineTestCase,
-)
+from zipline.pipeline.loaders.synthetic import expected_bar_values_2d, make_bar_data
+from zipline.testing import str_to_seconds
 from zipline.utils.cache import dataframe_cache
-from zipline.utils.functional import apply
-import zipline.utils.paths as pth
+from zipline.utils.calendar_utils import TradingCalendar, get_calendar
 
 _1_ns = pd.Timedelta(1, unit="ns")
 
 
-class BundleCoreTestCase(WithInstanceTmpDir, ZiplineTestCase):
+@pytest.fixture(scope="function")
+def set_tmp_environ(request, tmp_path):
+    tmpdir_path = str(tmp_path)
+    request.cls.environ = {"ZIPLINE_ROOT": tmpdir_path}
+
+
+@pytest.fixture
+def make_bundle():
+    (
+        bundles,
+        register,
+        unregister,
+        ingest,
+        load,
+        clean,
+    ) = _make_bundle_core()
+    yield bundles, register, unregister, ingest, load, clean
+
+    for name in set(bundles.keys()):
+        unregister(name)
+
+    assert not bundles
+
+
+@pytest.mark.usefixtures("set_tmp_environ")
+class TestBundleCore:
 
     START_DATE = pd.Timestamp("2014-01-06", tz="utc")
     END_DATE = pd.Timestamp("2014-01-10", tz="utc")
 
-    def init_instance_fixtures(self):
-        super(BundleCoreTestCase, self).init_instance_fixtures()
-        (
-            self.bundles,
-            self.register,
-            self.unregister,
-            self.ingest,
-            self.load,
-            self.clean,
-        ) = _make_bundle_core()
-        self.environ = {"ZIPLINE_ROOT": self.instance_tmpdir.path}
+    def test_register_decorator(self, make_bundle):
+        (bundles, register, _, ingest, _, _) = make_bundle
 
-    def test_register_decorator(self):
-        @apply
-        @subtest(((c,) for c in "abcde"), "name")
-        def _(name):
-            @self.register(name)
+        names = "abcde"
+        for name in names:
+
+            @register(name)
             def ingest(*args):
                 pass
 
-            assert name in self.bundles
-            assert self.bundles[name].ingest is ingest
+            assert name in bundles
+            assert bundles[name].ingest is ingest
+        assert set(bundles.keys()) == set(names)
 
-        self._check_bundles(set("abcde"))
+    def test_register_call(self, make_bundle):
+        (bundles, register, _, ingest, _, _) = make_bundle
 
-    def test_register_call(self):
         def ingest(*args):
             pass
 
-        @apply
-        @subtest(((c,) for c in "abcde"), "name")
-        def _(name):
-            self.register(name, ingest)
-            assert name in self.bundles
-            assert self.bundles[name].ingest is ingest
-
-        assert valmap(op.attrgetter("ingest"), self.bundles) == {
-            k: ingest for k in "abcde"
-        }
-        self._check_bundles(set("abcde"))
-
-    def _check_bundles(self, names):
-        assert set(self.bundles.keys()) == names
-
+        names = "abcde"
         for name in names:
-            self.unregister(name)
+            register(name, ingest)
+            assert name in bundles
+            assert bundles[name].ingest is ingest
 
-        assert not self.bundles
+        assert valmap(op.attrgetter("ingest"), bundles) == {k: ingest for k in names}
+        assert set(bundles.keys()) == set(names)
 
-    def test_register_no_create(self):
+    def test_register_no_create(self, make_bundle):
+        (_, register, _, ingest, _, _) = make_bundle
         called = [False]
 
-        @self.register("bundle", create_writers=False)
+        @register("bundle", create_writers=False)
         def bundle_ingest(
             environ,
             asset_db_writer,
@@ -122,10 +114,11 @@ class BundleCoreTestCase(WithInstanceTmpDir, ZiplineTestCase):
             assert adjustment_writer is None
             called[0] = True
 
-        self.ingest("bundle", self.environ)
+        ingest("bundle", self.environ)
         assert called[0]
 
-    def test_ingest(self):
+    def test_ingest(self, make_bundle):
+        (_, register, _, ingest, load, _) = make_bundle
         calendar = get_calendar("XNYS")
         sessions = calendar.sessions_in_range(self.START_DATE, self.END_DATE)
         minutes = calendar.minutes_for_sessions_in_range(
@@ -159,7 +152,7 @@ class BundleCoreTestCase(WithInstanceTmpDir, ZiplineTestCase):
             ]
         )
 
-        @self.register(
+        @register(
             "bundle",
             calendar_name="NYSE",
             start_session=self.START_DATE,
@@ -182,15 +175,18 @@ class BundleCoreTestCase(WithInstanceTmpDir, ZiplineTestCase):
 
             asset_db_writer.write(equities=equities)
             minute_bar_writer.write(minute_bar_data)
-            daily_bar_writer.write(daily_bar_data)
+            daily_bar_writer.write_from_sid_df_pairs(
+                "US", daily_bar_data, exchange_name=calendar.name
+            )
+
             adjustment_writer.write(splits=splits)
 
             assert isinstance(calendar, TradingCalendar)
             assert isinstance(cache, dataframe_cache)
             assert isinstance(show_progress, bool)
 
-        self.ingest("bundle", environ=self.environ)
-        bundle = self.load("bundle", environ=self.environ)
+        ingest("bundle", environ=self.environ)
+        bundle = load("bundle", environ=self.environ)
 
         assert set(bundle.asset_finder.sids) == set(sids)
 
@@ -274,18 +270,19 @@ class BundleCoreTestCase(WithInstanceTmpDir, ZiplineTestCase):
         }, "volume"
 
     @pytest.mark.filterwarnings("ignore: Overwriting bundle with name")
-    def test_ingest_assets_versions(self):
+    def test_ingest_assets_versions(self, make_bundle):
+        (_, register, _, ingest, load, _) = make_bundle
         versions = (1, 2)
 
         called = [False]
 
-        @self.register("bundle", create_writers=False)
+        @register("bundle", create_writers=False)
         def bundle_ingest_no_create_writers(*args, **kwargs):
             called[0] = True
 
         now = pd.Timestamp.utcnow()
         with pytest.raises(ValueError, match="ingest .* creates writers .* downgrade"):
-            self.ingest(
+            ingest(
                 "bundle",
                 self.environ,
                 assets_versions=versions,
@@ -294,7 +291,7 @@ class BundleCoreTestCase(WithInstanceTmpDir, ZiplineTestCase):
         assert not called[0]
         assert len(ingestions_for_bundle("bundle", self.environ)) == 1
 
-        @self.register("bundle", create_writers=True)
+        @register("bundle", create_writers=True)
         def bundle_ingest_create_writers(
             environ,
             asset_db_writer,
@@ -323,11 +320,12 @@ class BundleCoreTestCase(WithInstanceTmpDir, ZiplineTestCase):
 
         # Explicitly use different timestamp; otherwise, test could run so fast
         # that first ingestion is re-used.
-        self.ingest("bundle", self.environ, assets_versions=versions, timestamp=now)
+        ingest("bundle", self.environ, assets_versions=versions, timestamp=now)
         assert called[0]
 
         ingestions = ingestions_for_bundle("bundle", self.environ)
         assert len(ingestions) == 2
+
         for version in sorted(set(versions) | {ASSET_DB_VERSION}):
             eng = sa.create_engine(
                 "sqlite:///"
@@ -343,21 +341,23 @@ class BundleCoreTestCase(WithInstanceTmpDir, ZiplineTestCase):
             version_table = metadata.tables["version_info"]
             check_version_info(eng, version_table, version)
 
-    @parameterized.expand([("clean",), ("load",)])
-    def test_bundle_doesnt_exist(self, fnname):
+    @pytest.mark.parametrize("fnname", ["clean", "load"])
+    def test_bundle_doesnt_exist(self, fnname, make_bundle):
+        (_, _, _, _, load, clean) = make_bundle
         with pytest.raises(
             UnknownBundle, match="No bundle registered with the name 'ayy'"
         ):
-            getattr(self, fnname)("ayy", environ=self.environ)
+            eval(fnname)("ayy", environ=self.environ)
 
-    def test_load_no_data(self):
+    def test_load_no_data(self, make_bundle):
+        (_, register, _, _, load, _) = make_bundle
         # register but do not ingest data
-        self.register("bundle", lambda *args: None)
+        register("bundle", lambda *args: None)
 
         ts = pd.Timestamp("2014", tz="UTC")
         expected_msg = "no data for bundle 'bundle' on or before %s" % ts
         with pytest.raises(ValueError, match=re.escape(expected_msg)):
-            self.load("bundle", timestamp=ts, environ=self.environ)
+            load("bundle", timestamp=ts, environ=self.environ)
 
     def _list_bundle(self):
         return {
@@ -367,7 +367,7 @@ class BundleCoreTestCase(WithInstanceTmpDir, ZiplineTestCase):
             )
         }
 
-    def _empty_ingest(self, _wrote_to=[]):
+    def _empty_ingest(self, bundles, register, ingest, _wrote_to=[]):
         """Run the nth empty ingest.
 
         Returns
@@ -375,9 +375,9 @@ class BundleCoreTestCase(WithInstanceTmpDir, ZiplineTestCase):
         wrote_to : str
             The timestr of the bundle written.
         """
-        if not self.bundles:
+        if not bundles:
 
-            @self.register(
+            @register(
                 "bundle",
                 calendar_name="NYSE",
                 start_session=pd.Timestamp("2014", tz="UTC"),
@@ -399,29 +399,30 @@ class BundleCoreTestCase(WithInstanceTmpDir, ZiplineTestCase):
                 _wrote_to.append(output_dir)
 
         _wrote_to[:] = []
-        self.ingest("bundle", environ=self.environ)
+        ingest("bundle", environ=self.environ)
         assert len(_wrote_to) == 1, "ingest was called more than once"
         ingestions = self._list_bundle()
         assert _wrote_to[0] in ingestions, "output_dir was not in the bundle directory"
 
         return _wrote_to[0]
 
-    def test_clean_keep_last(self):
-        first = self._empty_ingest()
+    def test_clean_keep_last(self, make_bundle):
+        (bundles, register, _, ingest, _, clean) = make_bundle
+        first = self._empty_ingest(bundles, register, ingest)
 
-        assert self.clean("bundle", keep_last=1, environ=self.environ) == set()
+        assert clean("bundle", keep_last=1, environ=self.environ) == set()
         assert self._list_bundle() == {first}, "directory should not have changed"
 
-        second = self._empty_ingest()
+        second = self._empty_ingest(bundles, register, ingest)
         assert self._list_bundle() == {first, second}, "two ingestions are not present"
-        assert self.clean("bundle", keep_last=1, environ=self.environ) == {first}
+        assert clean("bundle", keep_last=1, environ=self.environ) == {first}
         assert self._list_bundle() == {
             second
         }, "first ingestion was not removed with keep_last=2"
 
-        third = self._empty_ingest()
-        fourth = self._empty_ingest()
-        fifth = self._empty_ingest()
+        third = self._empty_ingest(bundles, register, ingest)
+        fourth = self._empty_ingest(bundles, register, ingest)
+        fifth = self._empty_ingest(bundles, register, ingest)
 
         assert self._list_bundle() == {
             second,
@@ -430,7 +431,7 @@ class BundleCoreTestCase(WithInstanceTmpDir, ZiplineTestCase):
             fifth,
         }, "larger set of ingestions did not happen correctly"
 
-        assert self.clean("bundle", keep_last=2, environ=self.environ) == {
+        assert clean("bundle", keep_last=2, environ=self.environ) == {
             second,
             third,
         }
@@ -441,14 +442,14 @@ class BundleCoreTestCase(WithInstanceTmpDir, ZiplineTestCase):
         }, "keep_last=2 did not remove the correct number of ingestions"
 
         with pytest.raises(BadClean):
-            self.clean("bundle", keep_last=-1, environ=self.environ)
+            clean("bundle", keep_last=-1, environ=self.environ)
 
         assert self._list_bundle() == {
             fourth,
             fifth,
         }, "keep_last=-1 removed some ingestions"
 
-        assert self.clean("bundle", keep_last=0, environ=self.environ) == {
+        assert clean("bundle", keep_last=0, environ=self.environ) == {
             fourth,
             fifth,
         }
@@ -461,10 +462,11 @@ class BundleCoreTestCase(WithInstanceTmpDir, ZiplineTestCase):
     def _ts_of_run(run):
         return from_bundle_ingest_dirname(run.rsplit(os.path.sep, 1)[-1])
 
-    def test_clean_before_after(self):
-        first = self._empty_ingest()
+    def test_clean_before_after(self, make_bundle):
+        (bundles, register, _, ingest, _, clean) = make_bundle
+        first = self._empty_ingest(bundles, register, ingest)
         assert (
-            self.clean(
+            clean(
                 "bundle",
                 before=self._ts_of_run(first),
                 environ=self.environ,
@@ -476,7 +478,7 @@ class BundleCoreTestCase(WithInstanceTmpDir, ZiplineTestCase):
         }, "directory should not have changed (before)"
 
         assert (
-            self.clean(
+            clean(
                 "bundle",
                 after=self._ts_of_run(first),
                 environ=self.environ,
@@ -488,15 +490,15 @@ class BundleCoreTestCase(WithInstanceTmpDir, ZiplineTestCase):
             first
         }, "directory should not have changed (after)"
 
-        assert self.clean(
+        assert clean(
             "bundle",
             before=self._ts_of_run(first) + _1_ns,
             environ=self.environ,
         ) == {first}
         assert self._list_bundle() == set(), "directory now be empty (before)"
 
-        second = self._empty_ingest()
-        assert self.clean(
+        second = self._empty_ingest(bundles, register, ingest)
+        assert clean(
             "bundle",
             after=self._ts_of_run(second) - _1_ns,
             environ=self.environ,
@@ -504,10 +506,10 @@ class BundleCoreTestCase(WithInstanceTmpDir, ZiplineTestCase):
 
         assert self._list_bundle() == set(), "directory now be empty (after)"
 
-        third = self._empty_ingest()
-        fourth = self._empty_ingest()
-        fifth = self._empty_ingest()
-        sixth = self._empty_ingest()
+        third = self._empty_ingest(bundles, register, ingest)
+        fourth = self._empty_ingest(bundles, register, ingest)
+        fifth = self._empty_ingest(bundles, register, ingest)
+        sixth = self._empty_ingest(bundles, register, ingest)
 
         assert self._list_bundle() == {
             third,
@@ -516,7 +518,7 @@ class BundleCoreTestCase(WithInstanceTmpDir, ZiplineTestCase):
             sixth,
         }, "larger set of ingestions did no happen correctly"
 
-        assert self.clean(
+        assert clean(
             "bundle",
             before=self._ts_of_run(fourth),
             after=self._ts_of_run(fifth),
