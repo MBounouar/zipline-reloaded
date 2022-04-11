@@ -102,7 +102,7 @@ def make_null_event_date_events(all_sids, timestamp):
         {
             "sid": all_sids,
             "timestamp": timestamp,
-            "event_date": pd.Timestamp("NaT"),
+            "event_date": pd.NaT,
             "float": -9999.0,
             "int": -9999,
             "datetime": pd.Timestamp("1980"),

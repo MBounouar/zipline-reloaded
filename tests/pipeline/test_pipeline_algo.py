@@ -148,7 +148,7 @@ class ClosesAndVolumes(WithMakeAlgo, ZiplineTestCase):
                     "sid": cls.split_asset.sid,
                     "value": cls.split_ratio,
                     "kind": MULTIPLY,
-                    "start_date": pd.Timestamp("NaT"),
+                    "start_date": pd.NaT,
                     "end_date": cls.split_date,
                     "apply_date": cls.split_date,
                 }

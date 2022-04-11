@@ -13,8 +13,6 @@ from zipline.testing.predicates import (
     assert_series_equal,
 )
 
-nat = pd.Timestamp("nat")
-
 
 @pytest.fixture(scope="class")
 def set_test_adjustments(request, tmp_path_factory):
