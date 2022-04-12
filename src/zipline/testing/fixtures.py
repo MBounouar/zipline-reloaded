@@ -65,7 +65,7 @@ from ..data.hdf5_daily_bars import (
     HDF5DailyBarWriter,
     MultiCountryDailyBarReader,
 )
-from ..data.minute_bars import (
+from ..data.bcolz_minute_bars import (
     BcolzMinuteBarReader,
     BcolzMinuteBarWriter,
     US_EQUITIES_MINUTES_PER_DAY,

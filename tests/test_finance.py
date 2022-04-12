@@ -27,7 +27,7 @@ import zipline.utils.factory as factory
 from testfixtures import TempDirectory
 from zipline.data.hdf5_daily_bars import HDF5DailyBarReader, HDF5DailyBarWriter
 from zipline.data.data_portal import DataPortal
-from zipline.data.minute_bars import BcolzMinuteBarReader
+from zipline.data.bcolz_minute_bars import BcolzMinuteBarReader
 from zipline.finance.asset_restrictions import NoRestrictions
 from zipline.finance.blotter.simulation_blotter import SimulationBlotter
 from zipline.finance.execution import LimitOrder, MarketOrder

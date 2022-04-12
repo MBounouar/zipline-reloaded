@@ -20,7 +20,7 @@ import pandas as pd
 
 from zipline.assets import Equity, Future
 from zipline.data.data_portal import HISTORY_FREQUENCIES, OHLCV_FIELDS
-from zipline.data.minute_bars import (
+from zipline.data.bcolz_minute_bars import (
     FUTURES_MINUTES_PER_DAY,
     US_EQUITIES_MINUTES_PER_DAY,
 )

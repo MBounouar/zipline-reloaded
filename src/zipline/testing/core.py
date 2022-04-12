@@ -29,7 +29,7 @@ from zipline.assets import AssetFinder, AssetDBWriter
 from zipline.assets.synthetic import make_simple_equity_info
 from zipline.utils.compat import getargspec, wraps
 from zipline.data.data_portal import DataPortal
-from zipline.data.minute_bars import (
+from zipline.data.bcolz_minute_bars import (
     BcolzMinuteBarReader,
     BcolzMinuteBarWriter,
     US_EQUITIES_MINUTES_PER_DAY,

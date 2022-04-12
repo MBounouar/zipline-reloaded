@@ -25,7 +25,7 @@ from zipline.assets.roll_finder import (
     ROLL_DAYS_FOR_CURRENT_CONTRACT,
     VolumeRollFinder,
 )
-from zipline.data.minute_bars import FUTURES_MINUTES_PER_DAY
+from zipline.data.bcolz_minute_bars import FUTURES_MINUTES_PER_DAY
 from zipline.errors import SymbolNotFound
 import zipline.testing.fixtures as zf
 import pytest

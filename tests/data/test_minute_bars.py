@@ -21,7 +21,7 @@ import pandas as pd
 import pytest
 from numpy.testing import assert_almost_equal, assert_array_equal
 from zipline.data.bar_reader import NoDataForSid, NoDataOnDate
-from zipline.data.minute_bars import (
+from zipline.data.bcolz_minute_bars import (
     US_EQUITIES_MINUTES_PER_DAY,
     BcolzMinuteBarMetadata,
     BcolzMinuteBarReader,

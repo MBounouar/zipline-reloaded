@@ -1,5 +1,4 @@
 import warnings
-import os
 import pandas as pd
 import pytest
 from zipline.utils.calendar_utils import get_calendar

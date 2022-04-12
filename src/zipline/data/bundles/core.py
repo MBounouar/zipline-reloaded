@@ -3,6 +3,7 @@ import os
 import shutil
 import warnings
 from collections import namedtuple
+from pathlib import Path
 
 import click
 import pandas as pd
@@ -19,7 +20,8 @@ from zipline.utils.preprocess import preprocess
 
 from ..adjustments import SQLiteAdjustmentReader, SQLiteAdjustmentWriter
 from ..bcolz_daily_bars import BcolzDailyBarReader, BcolzDailyBarWriter
-from ..minute_bars import BcolzMinuteBarReader, BcolzMinuteBarWriter
+from ..hdf5_daily_bars import HDF5DailyBarWriter, HDF5DailyBarReader
+from ..bcolz_minute_bars import BcolzMinuteBarReader, BcolzMinuteBarWriter
 
 log = Logger(__name__)
 
@@ -38,9 +40,9 @@ def minute_equity_path(bundle_name, timestr, environ=None):
     )
 
 
-def daily_equity_path(bundle_name, timestr, environ=None):
+def daily_equity_path(bundle_name, timestr, environ=None, h5=False):
     return pth.data_path(
-        daily_equity_relative(bundle_name, timestr),
+        daily_equity_relative(bundle_name, timestr, h5),
         environ=environ,
     )
 
@@ -67,8 +69,8 @@ def cache_relative(bundle_name):
     return bundle_name, ".cache"
 
 
-def daily_equity_relative(bundle_name, timestr):
-    return bundle_name, timestr, "daily_equities.bcolz"
+def daily_equity_relative(bundle_name, timestr, h5=False):
+    return bundle_name, timestr, f"daily_equities.{'bcolz' if not h5 else 'h5'}"
 
 
 def minute_equity_relative(bundle_name, timestr):
@@ -297,7 +299,7 @@ def _make_bundle_core():
         """
         if name in bundles:
             warnings.warn(
-                "Overwriting bundle with name %r" % name,
+                f"Overwriting bundle with name {name!r}",
                 stacklevel=3,
             )
 
@@ -393,19 +395,20 @@ def _make_bundle_core():
                 wd = stack.enter_context(
                     working_dir(pth.data_path([], environ=environ))
                 )
-                daily_bars_path = wd.ensure_dir(*daily_equity_relative(name, timestr))
-                daily_bar_writer = BcolzDailyBarWriter(
-                    daily_bars_path,
-                    calendar,
-                    start_session,
-                    end_session,
+
+                # daily_bars_path = wd.ensure_dir(
+                #     *daily_equity_relative(name, timestr, h5=True)
+                # )
+                daily_bars_path_h5 = Path(
+                    pth.data_path([], environ=environ),
+                    *daily_equity_relative(name, timestr, h5=True),
                 )
+                daily_bar_writer = HDF5DailyBarWriter(str(daily_bars_path_h5), 30)
                 # Do an empty write to ensure that the daily ctables exist
                 # when we create the SQLiteAdjustmentWriter below. The
                 # SQLiteAdjustmentWriter needs to open the daily ctables so
                 # that it can compute the adjustment ratios for the dividends.
-
-                daily_bar_writer.write(())
+                daily_bar_writer.write_from_sid_df_pairs("US", iter(()))
                 minute_bar_writer = BcolzMinuteBarWriter(
                     wd.ensure_dir(*minute_equity_relative(name, timestr)),
                     calendar,
@@ -415,14 +418,15 @@ def _make_bundle_core():
                 )
                 assets_db_path = wd.getpath(*asset_db_relative(name, timestr))
                 asset_db_writer = AssetDBWriter(assets_db_path)
-
-                adjustment_db_writer = stack.enter_context(
-                    SQLiteAdjustmentWriter(
-                        wd.getpath(*adjustment_db_relative(name, timestr)),
-                        BcolzDailyBarReader(daily_bars_path),
-                        overwrite=True,
-                    )
+                adjustment_db_writer = None
+                adjustment_db_writer = SQLiteAdjustmentWriter(
+                    # stack.enter_context(
+                    wd.getpath(*adjustment_db_relative(name, timestr)),
+                    # BcolzDailyBarReader(daily_bars_path),
+                    HDF5DailyBarReader.from_path(str(daily_bars_path_h5), "US"),
+                    overwrite=True,
                 )
+                # )
             else:
                 daily_bar_writer = None
                 minute_bar_writer = None
@@ -434,7 +438,8 @@ def _make_bundle_core():
                         "writers in order to downgrade the assets"
                         " db."
                     )
-            log.info("Ingesting {}.", name)
+            log.info(f"Ingesting {name}.")
+
             bundle.ingest(
                 environ,
                 asset_db_writer,
@@ -530,8 +535,11 @@ def _make_bundle_core():
             equity_minute_bar_reader=BcolzMinuteBarReader(
                 minute_equity_path(name, timestr, environ=environ),
             ),
-            equity_daily_bar_reader=BcolzDailyBarReader(
-                daily_equity_path(name, timestr, environ=environ),
+            # equity_daily_bar_reader=BcolzDailyBarReader(
+            #     daily_equity_path(name, timestr, environ=environ),
+            # ),
+            equity_daily_bar_reader=HDF5DailyBarReader.from_path(
+                str(daily_equity_path(name, timestr, environ=environ, h5=True)), "US"
             ),
             adjustment_reader=SQLiteAdjustmentReader(
                 adjustment_db_path(name, timestr, environ=environ),
