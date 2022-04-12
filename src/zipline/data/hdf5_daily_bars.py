@@ -301,11 +301,13 @@ class HDF5DailyBarWriter:
             # h5py crashes if we provide chunks for empty data.
             chunks = None
 
-        with self.h5_file(mode="a") as h5_file:
+        with h5py.File(self._filename, "a") as self.h5_rwfile:
             # ensure that the file version has been written
-            h5_file.attrs["version"] = VERSION
+            self.h5_rwfile.attrs["version"] = VERSION
 
-            country_group = h5_file.create_group(country_code)
+            country_group = self.h5_rwfile.get(country_code, None)
+            if country_group is None:
+                country_group = self.h5_rwfile.create_group(country_code)
 
             self._write_index_group(country_group, days, sids)
             self._write_lifetimes_group(country_group, start_date_ixs, end_date_ixs)
@@ -382,9 +384,14 @@ class HDF5DailyBarWriter:
 
     def _write_index_group(self, country_group, days, sids):
         """Write /country/index."""
-        index_group = country_group.create_group(INDEX)
-        self._log_writing_dataset(index_group)
+        if country_group.get(INDEX, None) is None:
+            index_group = country_group.create_group(INDEX)
+        else:
+            index_group = country_group[INDEX]
+            del self.h5_rwfile[index_group.name][SID]
+            del self.h5_rwfile[index_group.name][DAY]
 
+        self._log_writing_dataset(index_group)
         index_group.create_dataset(SID, data=sids)
 
         # h5py does not support datetimes, so they need to be stored
@@ -393,17 +400,26 @@ class HDF5DailyBarWriter:
 
     def _write_lifetimes_group(self, country_group, start_date_ixs, end_date_ixs):
         """Write /country/lifetimes"""
-        lifetimes_group = country_group.create_group(LIFETIMES)
-        self._log_writing_dataset(lifetimes_group)
+        if country_group.get(LIFETIMES, None) is None:
+            lifetimes_group = country_group.create_group(LIFETIMES)
+        else:
+            lifetimes_group = country_group[LIFETIMES]
+            del self.h5_rwfile[lifetimes_group.name][START_DATE]
+            del self.h5_rwfile[lifetimes_group.name][END_DATE]
 
+        self._log_writing_dataset(lifetimes_group)
         lifetimes_group.create_dataset(START_DATE, data=start_date_ixs)
         lifetimes_group.create_dataset(END_DATE, data=end_date_ixs)
 
     def _write_currency_group(self, country_group, currencies):
         """Write /country/currency"""
-        currency_group = country_group.create_group(CURRENCY)
-        self._log_writing_dataset(currency_group)
+        if country_group.get(CURRENCY, None) is None:
+            currency_group = country_group.create_group(CURRENCY)
+        else:
+            currency_group = country_group[CURRENCY]
+            del self.h5_rwfile[currency_group.name][CODE]
 
+        self._log_writing_dataset(currency_group)
         currency_group.create_dataset(
             CODE,
             data=currencies.values.astype(dtype="S3"),
@@ -411,13 +427,23 @@ class HDF5DailyBarWriter:
 
     def _write_trading_calendar_group(self, country_group, calendar_name):
         """Write /country/trading_calendar"""
-        trading_calendar_group = country_group.create_group(TRADING_CALENDAR)
-        trading_calendar_group.create_group(calendar_name)
+        if country_group.get(TRADING_CALENDAR, None) is None:
+            trading_calendar_group = country_group.create_group(TRADING_CALENDAR)
+            trading_calendar_group.create_group(calendar_name)
+        else:
+            trading_calendar_group = country_group[TRADING_CALENDAR]
+
         self._log_writing_dataset(trading_calendar_group)
 
     def _write_data_group(self, country_group, frames, scaling_factors, chunks):
         """Write /country/data"""
-        data_group = country_group.create_group(DATA)
+        if country_group.get(DATA) is None:
+            data_group = country_group.create_group(DATA)
+        else:
+            data_group = country_group[DATA]
+            for field in FIELDS:
+                del self.h5_rwfile[data_group.name][field]
+
         self._log_writing_dataset(data_group)
 
         for field in FIELDS:
@@ -533,11 +559,8 @@ class HDF5DailyBarReader(CurrencyAwareSessionBarReader):
         """
         if h5_file.attrs["version"] != VERSION:
             raise ValueError(
-                "mismatched version: file is of version %s, expected %s"
-                % (
-                    h5_file.attrs["version"],
-                    VERSION,
-                ),
+                f"mismatched version: file is of version {h5_file.attrs['version']},"
+                f" expected {VERSION}"
             )
 
         return cls(h5_file[country_code])
@@ -554,7 +577,7 @@ class HDF5DailyBarReader(CurrencyAwareSessionBarReader):
         country_code : str
             The ISO 3166 alpha-2 country code for the country to read.
         """
-        return cls.from_file(h5py.File(path), country_code)
+        return cls.from_file(h5py.File(path, "a"), country_code)
 
     def _read_scaling_factor(self, field):
         return self._country_group[DATA][field].attrs[SCALING_FACTOR]
@@ -900,7 +923,7 @@ class MultiCountryDailyBarReader(CurrencyAwareSessionBarReader):
         path : str
             Path to an HDF5 daily pricing file.
         """
-        return cls.from_file(h5py.File(path))
+        return cls.from_file(h5py.File(path, "a"))
 
     @property
     def countries(self):

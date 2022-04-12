@@ -16,7 +16,7 @@
 """
 Tests for the zipline.finance package
 """
-import os
+from pathlib import Path
 from datetime import datetime, timedelta
 from functools import partial
 import numpy as np
@@ -25,7 +25,6 @@ import pytest
 import pytz
 import zipline.utils.factory as factory
 from testfixtures import TempDirectory
-from zipline.data.bcolz_daily_bars import BcolzDailyBarReader, BcolzDailyBarWriter
 from zipline.data.hdf5_daily_bars import HDF5DailyBarReader, HDF5DailyBarWriter
 from zipline.data.data_portal import DataPortal
 from zipline.data.minute_bars import BcolzMinuteBarReader
@@ -278,7 +277,7 @@ class TestFinance:
                     )
                 }
 
-                path = os.path.join(tempdir.path, "testdata.h5")
+                path = Path(tempdir.path) / "testdata.h5"
                 #### TODO : CLEANUP AND FINISH
                 HDF5DailyBarWriter(path, 30).write_from_sid_df_pairs(
                     "US",
@@ -304,10 +303,7 @@ class TestFinance:
 
             start_date = sim_params.first_open
 
-            if alternate:
-                alternator = -1
-            else:
-                alternator = 1
+            alternator = -1 if alternate else 1
 
             tracker = MetricsTracker(
                 trading_calendar=self.trading_calendar,
