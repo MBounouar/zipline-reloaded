@@ -1,54 +1,38 @@
 """
 Tests for Algorithms using the Pipeline API.
 """
-from os.path import (
-    dirname,
-    join,
-    realpath,
-)
+from pathlib import Path
 
-from parameterized import parameterized
 import numpy as np
-from numpy.testing import assert_almost_equal
 import pandas as pd
-from zipline.utils.calendar_utils import get_calendar
-
-from zipline.api import (
-    attach_pipeline,
-    pipeline_output,
-    get_datetime,
-)
+import pytest
+from parameterized import parameterized
+from zipline.api import attach_pipeline, get_datetime, pipeline_output
 from zipline.errors import (
     AttachPipelineAfterInitialize,
-    PipelineOutputDuringInitialize,
-    NoSuchPipeline,
     DuplicatePipelineName,
+    NoSuchPipeline,
+    PipelineOutputDuringInitialize,
 )
 from zipline.finance.trading import SimulationParameters
 from zipline.lib.adjustment import MULTIPLY
-from zipline.pipeline import Pipeline, CustomFactor
-from zipline.pipeline.factors import VWAP
+from zipline.pipeline import CustomFactor, Pipeline
 from zipline.pipeline.data import USEquityPricing
+from zipline.pipeline.factors import VWAP
+from zipline.pipeline.loaders.equity_pricing_loader import USEquityPricingLoader
 from zipline.pipeline.loaders.frame import DataFrameLoader
-from zipline.pipeline.loaders.equity_pricing_loader import (
-    USEquityPricingLoader,
-)
-from zipline.testing import str_to_seconds
-from zipline.testing import create_empty_splits_mergers_frame
+from zipline.testing import create_empty_splits_mergers_frame, str_to_seconds
 from zipline.testing.fixtures import (
-    WithMakeAlgo,
     WithAdjustmentReader,
     WithBcolzEquityDailyBarReaderFromCSVs,
+    WithMakeAlgo,
     ZiplineTestCase,
 )
+from zipline.utils.calendar_utils import get_calendar
 from zipline.utils.pandas_utils import normalize_date
-import pytest
 
-TEST_RESOURCE_PATH = join(
-    dirname(dirname(realpath(__file__))),  # zipline_repo/tests
-    "resources",
-    "pipeline_inputs",
-)
+# zipline_repo/tests/resources/pipeline_inputs
+TEST_RESOURCE_PATH = Path(__file__).parent.parent / "resources" / "pipeline_inputs"
 
 
 def rolling_vwap(df, length):
@@ -447,9 +431,9 @@ class PipelineAlgorithmTestCase(
     @classmethod
     def make_equity_daily_bar_data(cls, country_code, sids):
         resources = {
-            cls.AAPL: join(TEST_RESOURCE_PATH, "AAPL.csv"),
-            cls.MSFT: join(TEST_RESOURCE_PATH, "MSFT.csv"),
-            cls.BRK_A: join(TEST_RESOURCE_PATH, "BRK-A.csv"),
+            cls.AAPL: TEST_RESOURCE_PATH / "AAPL.csv",
+            cls.MSFT: TEST_RESOURCE_PATH / "MSFT.csv",
+            cls.BRK_A: TEST_RESOURCE_PATH / "BRK-A.csv",
         }
         cls.raw_data = raw_data = {
             asset: pd.read_csv(path, parse_dates=["day"]).set_index("day")
@@ -557,8 +541,8 @@ class PipelineAlgorithmTestCase(
         # length 1 vwap for the morning before the split should be the close
         # price of the previous day.
         before_split = vwaps[1][AAPL].loc[split_date - self.trading_calendar.day]
-        assert_almost_equal(before_split, 647.3499, decimal=2)
-        assert_almost_equal(
+        np.testing.assert_almost_equal(before_split, 647.3499, decimal=2)
+        np.testing.assert_almost_equal(
             before_split,
             raw[AAPL].loc[split_date - (2 * self.trading_calendar.day), "close"],
             decimal=2,
@@ -567,8 +551,8 @@ class PipelineAlgorithmTestCase(
         # length 1 vwap for the morning of the split should be the close price
         # of the previous day, **ADJUSTED FOR THE SPLIT**.
         on_split = vwaps[1][AAPL].loc[split_date]
-        assert_almost_equal(on_split, 645.5700 / split_ratio, decimal=2)
-        assert_almost_equal(
+        np.testing.assert_almost_equal(on_split, 645.5700 / split_ratio, decimal=2)
+        np.testing.assert_almost_equal(
             on_split,
             raw[AAPL].loc[split_date - self.trading_calendar.day, "close"]
             / split_ratio,
@@ -578,8 +562,8 @@ class PipelineAlgorithmTestCase(
         # length 1 vwap on the day after the split should be the as-traded
         # close on the split day.
         after_split = vwaps[1][AAPL].loc[split_date + self.trading_calendar.day]
-        assert_almost_equal(after_split, 93.69999, decimal=2)
-        assert_almost_equal(
+        np.testing.assert_almost_equal(after_split, 93.69999, decimal=2)
+        np.testing.assert_almost_equal(
             after_split,
             raw[AAPL].loc[split_date, "close"],
             decimal=2,
@@ -639,7 +623,7 @@ class PipelineAlgorithmTestCase(
                     expected = vwaps[length][asset].loc[today]
                     # Only having two places of precision here is a bit
                     # unfortunate.
-                    assert_almost_equal(computed, expected, decimal=2)
+                    np.testing.assert_almost_equal(computed, expected, decimal=2)
 
         # Do the same checks in before_trading_start
         before_trading_start = handle_data

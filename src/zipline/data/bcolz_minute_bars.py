@@ -11,33 +11,31 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from abc import ABCMeta, abstractmethod
+# from pathlib import Path
 import json
+from pathlib import Path
 import os
+from abc import ABCMeta, abstractmethod
 from glob import glob
-from os.path import join
 from textwrap import dedent
 
-from lru import LRU
 import bcolz
-from bcolz import ctable
-from intervaltree import IntervalTree
 import logbook
 import numpy as np
 import pandas as pd
+from intervaltree import IntervalTree
+from lru import LRU
 from pandas import HDFStore
 from toolz import keymap, valmap
-from zipline.utils.calendar_utils import get_calendar
-
 from zipline.data._minute_bar_internal import (
-    minute_value,
-    find_position_of_minute,
     find_last_traded_position_internal,
+    find_position_of_minute,
+    minute_value,
 )
-
-from zipline.gens.sim_engine import NANOS_IN_MINUTE
 from zipline.data.bar_reader import BarReader, NoDataForSid, NoDataOnDate
 from zipline.data.bcolz_daily_bars import check_uint32_safe
+from zipline.gens.sim_engine import NANOS_IN_MINUTE
+from zipline.utils.calendar_utils import get_calendar
 from zipline.utils.cli import maybe_show_progress
 from zipline.utils.compat import mappingproxy
 from zipline.utils.memoize import lazyval
@@ -507,7 +505,7 @@ class BcolzMinuteBarWriter:
             Full path to the bcolz rootdir for the given sid.
         """
         sid_subdir = _sid_subdir_path(sid)
-        return join(self._rootdir, sid_subdir)
+        return os.path.join(self._rootdir, sid_subdir)
 
     def last_date_in_output_for_sid(self, sid):
         """
@@ -553,7 +551,7 @@ class BcolzMinuteBarWriter:
             # Other sids may have already created the containing directory.
             os.makedirs(sid_containing_dirname)
         initial_array = np.empty(0, np.uint32)
-        table = ctable(
+        table = bcolz.ctable(
             rootdir=path,
             columns=[
                 initial_array,
@@ -1054,7 +1052,7 @@ class BcolzMinuteBarReader(MinuteBarReader):
                     mode="r",
                 )
             except IOError:
-                raise NoDataForSid("No minute data for sid {}.".format(sid))
+                raise NoDataForSid(f"No minute data for sid {sid}.")
 
         return carray
 

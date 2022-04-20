@@ -15,9 +15,7 @@ from abc import ABCMeta, abstractmethod, abstractproperty
 
 
 class NoDataOnDate(Exception):
-    """
-    Raised when a spot price cannot be found for the sid and date.
-    """
+    """Raised when a spot price cannot be found for the sid and date."""
 
     ...
 
@@ -31,9 +29,7 @@ class NoDataAfterDate(NoDataOnDate):
 
 
 class NoDataForSid(Exception):
-    """
-    Raised when the requested sid is missing from the pricing data.
-    """
+    """Raised when the requested sid is missing from the pricing data."""
 
     ...
 

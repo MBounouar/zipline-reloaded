@@ -46,7 +46,10 @@ TEST_CALENDAR_STOP = pd.Timestamp("2015-12-31", tz="UTC")
 
 
 class BcolzMinuteBarTestCase(
-    WithTradingCalendars, WithAssetFinder, WithInstanceTmpDir, ZiplineTestCase
+    WithTradingCalendars,
+    WithAssetFinder,
+    WithInstanceTmpDir,
+    ZiplineTestCase,
 ):
     ASSET_FINDER_EQUITY_SIDS = 1, 2
 

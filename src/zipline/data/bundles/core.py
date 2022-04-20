@@ -73,14 +73,14 @@ def daily_equity_relative(bundle_name, timestr, h5=False):
     return bundle_name, timestr, f"daily_equities.{'bcolz' if not h5 else 'h5'}"
 
 
-def minute_equity_relative(bundle_name, timestr):
-    return bundle_name, timestr, "minute_equities.bcolz"
+def minute_equity_relative(bundle_name, timestr, h5=False):
+    return bundle_name, timestr, f"minute_equities.{'bcolz' if not h5 else 'h5'}"
 
 
 def asset_db_relative(bundle_name, timestr, db_version=None):
     db_version = ASSET_DB_VERSION if db_version is None else db_version
 
-    return bundle_name, timestr, "assets-%d.sqlite" % db_version
+    return bundle_name, timestr, f"assets-{db_version}.sqlite"
 
 
 def to_bundle_ingest_dirname(ts):
@@ -158,7 +158,7 @@ class UnknownBundle(click.ClickException, LookupError):
 
     def __init__(self, name):
         super(UnknownBundle, self).__init__(
-            "No bundle registered with the name %r" % name,
+            f"No bundle registered with the name {name!r}",
         )
         self.name = name
 
@@ -184,12 +184,7 @@ class BadClean(click.ClickException, ValueError):
         super(BadClean, self).__init__(
             "Cannot pass a combination of `before` and `after` with "
             "`keep_last`. Must pass one. "
-            "Got: before=%r, after=%r, keep_last=%r\n"
-            % (
-                before,
-                after,
-                keep_last,
-            ),
+            f"Got: before={before!r}, after={after!r}, keep_last={keep_last!r}\n"
         )
 
     def __str__(self):
@@ -403,7 +398,7 @@ def _make_bundle_core():
                     pth.data_path([], environ=environ),
                     *daily_equity_relative(name, timestr, h5=True),
                 )
-                daily_bar_writer = HDF5DailyBarWriter(str(daily_bars_path_h5), 30)
+                daily_bar_writer = HDF5DailyBarWriter(daily_bars_path_h5, 30)
                 # Do an empty write to ensure that the daily ctables exist
                 # when we create the SQLiteAdjustmentWriter below. The
                 # SQLiteAdjustmentWriter needs to open the daily ctables so
