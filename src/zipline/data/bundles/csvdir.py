@@ -122,14 +122,14 @@ def csvdir_bundle(
             raise ValueError("CSVDIR environment variable is not set")
 
     if not os.path.isdir(csvdir):
-        raise ValueError("%s is not a directory" % csvdir)
+        raise ValueError(f"{csvdir} is not a directory")
 
     if not tframes:
         tframes = set(["daily", "minute"]).intersection(os.listdir(csvdir))
 
         if not tframes:
             raise ValueError(
-                "'daily' and 'minute' directories " "not found in '%s'" % csvdir
+                f"'daily' and 'minute' directories not found in {csvdir!r}"
             )
 
     divs_splits = {
@@ -152,7 +152,7 @@ def csvdir_bundle(
             item.split(".csv")[0] for item in os.listdir(ddir) if ".csv" in item
         )
         if not symbols:
-            raise ValueError("no <symbol>.csv* files found in %s" % ddir)
+            raise ValueError(f"no <symbol>.csv* files found in {ddir}")
 
         dtype = [
             ("start_date", "datetime64[ns]"),
@@ -167,9 +167,13 @@ def csvdir_bundle(
         else:
             writer = daily_bar_writer
 
-        writer.write(
+        # writer.write(
+        #     _pricing_iter(ddir, symbols, metadata, divs_splits, show_progress),
+        #     show_progress=show_progress,
+        # )
+        writer.write_from_sid_df_pairs(
+            "US",
             _pricing_iter(ddir, symbols, metadata, divs_splits, show_progress),
-            show_progress=show_progress,
         )
 
         # Hardcode the exchange to "CSVDIR" for all assets and (elsewhere)

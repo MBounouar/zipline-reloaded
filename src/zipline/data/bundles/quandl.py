@@ -196,9 +196,13 @@ def quandl_bundle(
     sessions = calendar.sessions_in_range(start_session, end_session)
 
     raw_data.set_index(["date", "symbol"], inplace=True)
-    daily_bar_writer.write(
+    # daily_bar_writer.write(
+    #     parse_pricing_and_vol(raw_data, sessions, symbol_map),
+    #     # show_progress=show_progress,
+    # )
+    daily_bar_writer.write_from_sid_df_pairs(
+        "US",
         parse_pricing_and_vol(raw_data, sessions, symbol_map),
-        show_progress=show_progress,
     )
 
     raw_data.reset_index(inplace=True)

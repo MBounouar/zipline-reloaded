@@ -109,7 +109,7 @@ import h5py
 import logbook
 import numpy as np
 import pandas as pd
-from functools import reduce
+from functools import reduce, cached_property
 
 from zipline.data.bar_reader import (
     NoDataAfterDate,
@@ -236,8 +236,8 @@ class HDF5DailyBarWriter:
         self._filename = filename
         self._date_chunk_size = date_chunk_size
 
-    def h5_file(self, mode):
-        return h5py.File(self._filename, mode)
+    # def h5_file(self, mode):
+    #   return h5py.File(self._filename, mode)
 
     def write(
         self,
@@ -327,6 +327,7 @@ class HDF5DailyBarWriter:
         currency_codes=None,
         exchange_name=None,
         scaling_factors=None,
+        overwrite=False,
     ):
         """
         Parameters
@@ -386,17 +387,29 @@ class HDF5DailyBarWriter:
         """Write /country/index."""
         if country_group.get(INDEX, None) is None:
             index_group = country_group.create_group(INDEX)
+            index_group.create_dataset(SID, data=sids, maxshape=(None,))
+            index_group.create_dataset(
+                DAY, data=days.astype(np.int64), maxshape=(None,)
+            )
+            self._log_writing_dataset(index_group)
         else:
-            index_group = country_group[INDEX]
-            del self.h5_rwfile[index_group.name][SID]
-            del self.h5_rwfile[index_group.name][DAY]
+            sid_dataset = country_group[INDEX][SID]
+            new_sids = np.array(list(set(sids) - set(sid_dataset[:])), dtype=np.int64)
+            if len(new_sids) > 0:
+                sid_dataset.resize((sid_dataset.shape[0] + new_sids.shape[0]), axis=0)
+                sid_dataset[-new_sids.shape[0] :] = sids
 
-        self._log_writing_dataset(index_group)
-        index_group.create_dataset(SID, data=sids)
+            day_dataset = country_group[INDEX][DAY]
+            days_ns = days.astype(np.int64)
+            # if len(day_dataset) != 0:
+            #     idx = days_ns.searchsorted(day_dataset[...][-1], "left")
+            #     days_ns = days_ns[idx + 1 :]
+            if len(days_ns) > 0 and not np.all(np.isin(days_ns, day_dataset[...])):
+                day_dataset.resize((day_dataset.shape[0] + days_ns.shape[0]), axis=0)
+                day_dataset[-days_ns.shape[0] :] = days_ns
 
         # h5py does not support datetimes, so they need to be stored
         # as integers.
-        index_group.create_dataset(DAY, data=days.astype(np.int64))
 
     def _write_lifetimes_group(self, country_group, start_date_ixs, end_date_ixs):
         """Write /country/lifetimes"""
@@ -441,8 +454,6 @@ class HDF5DailyBarWriter:
             data_group = country_group.create_group(DATA)
         else:
             data_group = country_group[DATA]
-            for field in FIELDS:
-                del self.h5_rwfile[data_group.name][field]
 
         self._log_writing_dataset(data_group)
 
@@ -458,16 +469,26 @@ class HDF5DailyBarWriter:
                 scaling_factors[field],
             )
 
-            dataset = data_group.create_dataset(
-                field,
-                compression="lzf",
-                shuffle=True,
-                data=data,
-                chunks=chunks,
-            )
-            self._log_writing_dataset(dataset)
+            if data_group.get(field, None) is None:
+                dataset = data_group.create_dataset(
+                    field,
+                    compression="lzf",
+                    shuffle=True,
+                    data=data,
+                    chunks=True,
+                    maxshape=(None, None),
+                )
+                self._log_writing_dataset(dataset)
+            else:
+                dataset_shape = data_group[field].shape
+                if dataset_shape == (0, 0):
+                    data_group[field].resize(data.shape)
+                    data_group[field][:] = data
+                else:
+                    data_group[field].resize(dataset_shape[1] + data.shape[1], axis=1)
+                    data_group[field][:, -data.shape[1] :] = data
 
-            dataset.attrs[SCALING_FACTOR] = scaling_factors[field]
+            data_group[field].attrs[SCALING_FACTOR] = scaling_factors[field]
 
     def _log_writing_dataset(self, dataset):
         log.debug(f"Writing {dataset.name} to file {self._filename}")
@@ -703,19 +724,23 @@ class HDF5DailyBarReader(CurrencyAwareSessionBarReader):
         if ts.asm8 not in self.dates:
             raise NoDataOnDate(ts)
 
-    @lazyval
+    # @lazyval
+    @property
     def dates(self):
         return self._country_group[INDEX][DAY][:].astype("datetime64[ns]")
 
-    @lazyval
+    # @lazyval
+    @property
     def sids(self):
         return self._country_group[INDEX][SID][:].astype("int64", copy=False)
 
-    @lazyval
+    # @lazyval
+    @property
     def asset_start_dates(self):
         return self.dates[self._country_group[LIFETIMES][START_DATE][:]]
 
-    @lazyval
+    # @lazyval
+    @property
     def asset_end_dates(self):
         return self.dates[self._country_group[LIFETIMES][END_DATE][:]]
 
