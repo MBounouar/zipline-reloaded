@@ -22,6 +22,7 @@ import pytest
 from numpy.testing import assert_almost_equal, assert_array_equal
 from zipline.data.bar_reader import NoDataForSid, NoDataOnDate
 from zipline.data.hdf5_daily_bars import (
+    HDF5OverlappingData,
     HDF5DailyBarWriter as HDF5MinuteBarWriter,
     HDF5DailyBarReader as HDF5MinuteBarReader,
     VERSION as HDF5_FILE_VERSION,
@@ -132,6 +133,9 @@ class HDF5MinuteBarTestCase(
             assert val == data.loc[minute, field]
 
     def test_write_one_ohlcv_with_ratios(self):
+        # TODO That's not the really working as intended
+        # scaling factors are not overwritten apparently
+        # is not SID specific
         minute = self.market_opens[self.test_calendar_start]
         sid = 1
         data = pd.DataFrame(
@@ -144,33 +148,28 @@ class HDF5MinuteBarTestCase(
             },
             index=[minute],
         )
-
-        # Create a new writer with `ohlc_ratios_per_sid` defined.
-        writer_with_ratios = BcolzMinuteBarWriter(
-            self.dest,
-            self.trading_calendar,
-            TEST_CALENDAR_START,
-            TEST_CALENDAR_STOP,
+        file_name = self.writer._filename
+        writer = HDF5MinuteBarWriter(
+            file_name,
             US_EQUITIES_MINUTES_PER_DAY,
-            ohlc_ratios_per_sid={sid: 25},
         )
-        writer_with_ratios.write_sid(sid, data)
-        reader = BcolzMinuteBarReader(self.dest)
+        # Create a new writer with `ohlc_ratios_per_sid` defined.
+        scaling_factors = dict(zip(data.columns, [25, 25, 25, 25, 10]))
+        writer.write_from_sid_df_pairs(
+            "US",
+            ((sid, data),),
+            scaling_factors=scaling_factors,
+        )
 
-        open_price = reader.get_value(sid, minute, "open")
-        assert 10.0 == open_price
+        reader = HDF5MinuteBarReader.from_path(file_name, "US")
 
-        high_price = reader.get_value(sid, minute, "high")
-        assert 20.0 == high_price
-
-        low_price = reader.get_value(sid, minute, "low")
-        assert 30.0 == low_price
-
-        close_price = reader.get_value(sid, minute, "close")
-        assert 40.0 == close_price
-
-        volume_price = reader.get_value(sid, minute, "volume")
-        assert 50.0 == volume_price
+        for field in data:
+            val = reader.get_value(sid, minute, field)
+            assert val == data.loc[minute, field]
+            assert (
+                reader._country_group["data"][field].attrs["scaling_factor"]
+                == scaling_factors[field]
+            )
 
     def test_write_two_bars(self):
         minute_0 = self.market_opens[self.test_calendar_start]
@@ -261,36 +260,11 @@ class HDF5MinuteBarTestCase(
         self.writer.write_from_sid_df_pairs("US", ((sid, data),))
 
         minute = minutes[0]
-        open_price = self.reader.get_value(sid, minute, "open")
-        assert 10.0 == open_price
 
-        high_price = self.reader.get_value(sid, minute, "high")
-        assert 20.0 == high_price
-
-        low_price = self.reader.get_value(sid, minute, "low")
-        assert 30.0 == low_price
-
-        close_price = self.reader.get_value(sid, minute, "close")
-        assert 40.0 == close_price
-
-        volume_price = self.reader.get_value(sid, minute, "volume")
-        assert 50.0 == volume_price
-
-        minute = minutes[1]
-        open_price = self.reader.get_value(sid, minute, "open")
-        assert 11.0 == open_price
-
-        high_price = self.reader.get_value(sid, minute, "high")
-        assert 21.0 == high_price
-
-        low_price = self.reader.get_value(sid, minute, "low")
-        assert 31.0 == low_price
-
-        close_price = self.reader.get_value(sid, minute, "close")
-        assert 41.0 == close_price
-
-        volume_price = self.reader.get_value(sid, minute, "volume")
-        assert 51.0 == volume_price
+        for field in data:
+            for minute in minutes:
+                val = self.reader.get_value(sid, minute, field)
+                assert val == data.loc[minute, field]
 
     def test_no_overwrite(self):
         minute = self.market_opens[TEST_CALENDAR_START]
@@ -307,7 +281,7 @@ class HDF5MinuteBarTestCase(
         )
         self.writer.write_from_sid_df_pairs("US", ((sid, data),))
 
-        with pytest.raises(BcolzMinuteOverlappingData):
+        with pytest.raises(HDF5OverlappingData):
             self.writer.write_from_sid_df_pairs("US", ((sid, data),))
 
     def test_append_to_same_day(self):
@@ -362,14 +336,14 @@ class HDF5MinuteBarTestCase(
         # Open a new writer to cover `open` method, also a common usage
         # of appending new days will be writing to an existing directory.
         cday = self.trading_calendar.schedule.index.freq
-        new_end_session = TEST_CALENDAR_STOP + cday
+        # new_end_session = TEST_CALENDAR_STOP + cday
         writer = HDF5MinuteBarWriter(
             file_name,
             US_EQUITIES_MINUTES_PER_DAY,
         )
         next_day_minute = dt + cday
         new_data = pd.DataFrame(data=ohlcv, index=[next_day_minute])
-        writer.write_from_sid_df_pairs("US", ((sid, new_data),))
+        writer.write_from_sid_df_pairs("US", ((sid, new_data * 0.5),))
 
         # Get a new reader to test updated calendar.
         reader = HDF5MinuteBarReader.from_path(file_name, "US")
@@ -377,13 +351,17 @@ class HDF5MinuteBarTestCase(
         second_minute = dt + pd.Timedelta(minutes=1)
 
         # The second minute should have been padded with zeros
-        for col in ("open", "high", "low", "close"):
+        # TODO: Why pad with zeros ? No data is no data ! ffill maybe ?
+        for col in ("open", "high", "low", "close", "volume"):
             assert_almost_equal(np.nan, reader.get_value(sid, second_minute, col))
-        assert 0 == reader.get_value(sid, second_minute, "volume")
+        # assert 0 == reader.get_value(sid, second_minute, "volume")
 
         # The next day minute should have data.
         for col in ("open", "high", "low", "close", "volume"):
-            assert_almost_equal(ohlcv[col], reader.get_value(sid, next_day_minute, col))
+            assert_almost_equal(
+                (new_data * 0.5).loc[next_day_minute, col],
+                reader.get_value(sid, next_day_minute, col),
+            )
 
     def test_write_multiple_sids(self):
         """

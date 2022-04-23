@@ -213,6 +213,10 @@ def days_and_sids_for_frames(frames):
     return frames[0].index.values, frames[0].columns.values
 
 
+class HDF5OverlappingData(Exception):
+    pass
+
+
 class HDF5DailyBarWriter:
     """
     Class capable of writing daily OHLCV data to disk in a format that
@@ -327,7 +331,6 @@ class HDF5DailyBarWriter:
         currency_codes=None,
         exchange_name=None,
         scaling_factors=None,
-        overwrite=False,
     ):
         """
         Parameters
@@ -395,12 +398,18 @@ class HDF5DailyBarWriter:
         else:
             sid_dataset = country_group[INDEX][SID]
             new_sids = np.array(list(set(sids) - set(sid_dataset[:])), dtype=np.int64)
+            day_dataset = country_group[INDEX][DAY]
+            days_ns = days.astype(np.int64)
+            if np.any(np.isin(days_ns, day_dataset[...])):
+                dt = days_ns[np.isin(days_ns, day_dataset[...])].astype(
+                    "datetime64[ns]"
+                )[0]
+
+                raise HDF5OverlappingData(f"Data already includes input from {dt} ")
             if len(new_sids) > 0:
                 sid_dataset.resize((sid_dataset.shape[0] + new_sids.shape[0]), axis=0)
                 sid_dataset[-new_sids.shape[0] :] = sids
 
-            day_dataset = country_group[INDEX][DAY]
-            days_ns = days.astype(np.int64)
             # if len(day_dataset) != 0:
             #     idx = days_ns.searchsorted(day_dataset[...][-1], "left")
             #     days_ns = days_ns[idx + 1 :]
@@ -415,14 +424,15 @@ class HDF5DailyBarWriter:
         """Write /country/lifetimes"""
         if country_group.get(LIFETIMES, None) is None:
             lifetimes_group = country_group.create_group(LIFETIMES)
+            if len(start_date_ixs) == 0:
+                start_date_ixs = end_date_ixs = np.array([0], dtype="int64")
+            lifetimes_group.create_dataset(START_DATE, data=start_date_ixs)
+            lifetimes_group.create_dataset(END_DATE, data=end_date_ixs)
         else:
-            lifetimes_group = country_group[LIFETIMES]
-            del self.h5_rwfile[lifetimes_group.name][START_DATE]
-            del self.h5_rwfile[lifetimes_group.name][END_DATE]
+            country_group[LIFETIMES][START_DATE][:] = 0
+            country_group[LIFETIMES][END_DATE][:] = len(country_group[INDEX][DAY]) - 1
 
-        self._log_writing_dataset(lifetimes_group)
-        lifetimes_group.create_dataset(START_DATE, data=start_date_ixs)
-        lifetimes_group.create_dataset(END_DATE, data=end_date_ixs)
+        self._log_writing_dataset(country_group[LIFETIMES])
 
     def _write_currency_group(self, country_group, currencies):
         """Write /country/currency"""
@@ -528,9 +538,9 @@ def compute_asset_lifetimes(frames):
     return start_date_ixs, end_date_ixs
 
 
-def convert_price_with_scaling_factor(a, scaling_factor):
+def convert_with_scaling_factor(a, scaling_factor):
+    # TODO: we should be able to pass the type aware i.e. VOLUME not treated as float
     conversion_factor = 1.0 / scaling_factor
-
     zeroes = a == 0
     return np.where(zeroes, np.nan, a.astype("float64")) * conversion_factor
 
@@ -548,22 +558,26 @@ class HDF5DailyBarReader(CurrencyAwareSessionBarReader):
 
         self._postprocessors = {
             OPEN: partial(
-                convert_price_with_scaling_factor,
+                convert_with_scaling_factor,
                 scaling_factor=self._read_scaling_factor(OPEN),
             ),
             HIGH: partial(
-                convert_price_with_scaling_factor,
+                convert_with_scaling_factor,
                 scaling_factor=self._read_scaling_factor(HIGH),
             ),
             LOW: partial(
-                convert_price_with_scaling_factor,
+                convert_with_scaling_factor,
                 scaling_factor=self._read_scaling_factor(LOW),
             ),
             CLOSE: partial(
-                convert_price_with_scaling_factor,
+                convert_with_scaling_factor,
                 scaling_factor=self._read_scaling_factor(CLOSE),
             ),
-            VOLUME: lambda a: a,
+            # VOLUME: lambda a: a,
+            VOLUME: partial(
+                convert_with_scaling_factor,
+                scaling_factor=self._read_scaling_factor(VOLUME),
+            ),
         }
 
     @classmethod
@@ -717,12 +731,15 @@ class HDF5DailyBarReader(CurrencyAwareSessionBarReader):
 
         if len(missing_sids):
             raise NoDataForSid(
-                "Assets not contained in daily pricing file: {}".format(missing_sids)
+                f"Assets not contained in daily pricing file: {missing_sids}"
             )
 
     def _validate_timestamp(self, ts):
         if ts.asm8 not in self.dates:
-            raise NoDataOnDate(ts)
+            if ts.asm8 < self.dates[-1]:
+                return True
+            else:
+                raise NoDataOnDate(ts)
 
     # @lazyval
     @property
@@ -847,14 +864,17 @@ class HDF5DailyBarReader(CurrencyAwareSessionBarReader):
             session (in daily mode) according to this reader's tradingcalendar.
         """
         self._validate_assets([sid])
-        self._validate_timestamp(dt)
+        pad_value = self._validate_timestamp(dt)
 
         sid_ix = self.sids.searchsorted(sid)
         dt_ix = self.dates.searchsorted(dt.asm8)
 
-        value = self._postprocessors[field](
-            self._country_group[DATA][field][sid_ix, dt_ix]
-        )
+        if pad_value:
+            value = np.nan
+        else:
+            value = self._postprocessors[field](
+                self._country_group[DATA][field][sid_ix, dt_ix]
+            )
 
         # When the value is nan, this dt may be outside the asset's lifetime.
         # If that's the case, the proper NoDataOnDate exception is raised.
