@@ -106,6 +106,7 @@ Sample layout of the full file with multiple countries.
 from functools import partial
 
 import h5py
+import hdf5plugin
 import logbook
 import numpy as np
 import pandas as pd
@@ -367,11 +368,11 @@ class HDF5DailyBarWriter:
                 exchange_name=exchange_name,
             )
 
-        sids, frames = zip(*data)
+        self._sids, frames = zip(*data)
         ohlcv_frame = pd.concat(frames)
 
         # Repeat each sid for each row in its corresponding frame.
-        sid_ix = np.repeat(sids, [len(f) for f in frames])
+        sid_ix = np.repeat(self._sids, [len(f) for f in frames])
 
         # Add id to the index, so the frame is indexed by (date, id).
         ohlcv_frame.set_index(sid_ix, append=True, inplace=True)
@@ -392,7 +393,9 @@ class HDF5DailyBarWriter:
             index_group = country_group.create_group(INDEX)
             index_group.create_dataset(SID, data=sids, maxshape=(None,))
             index_group.create_dataset(
-                DAY, data=days.astype(np.int64), maxshape=(None,)
+                DAY,
+                data=days.astype(np.int64),
+                maxshape=(None,),
             )
             self._log_writing_dataset(index_group)
         else:
@@ -400,12 +403,12 @@ class HDF5DailyBarWriter:
             new_sids = np.array(list(set(sids) - set(sid_dataset[:])), dtype=np.int64)
             day_dataset = country_group[INDEX][DAY]
             days_ns = days.astype(np.int64)
-            if np.any(np.isin(days_ns, day_dataset[...])):
-                dt = days_ns[np.isin(days_ns, day_dataset[...])].astype(
-                    "datetime64[ns]"
-                )[0]
+            # if np.any(np.isin(days_ns, day_dataset[...])):
+            #     dt = days_ns[np.isin(days_ns, day_dataset[...])].astype(
+            #         "datetime64[ns]"
+            #     )[0]
 
-                raise HDF5OverlappingData(f"Data already includes input from {dt} ")
+            #     raise HDF5OverlappingData(f"Data already includes input from {dt} ")
             if len(new_sids) > 0:
                 sid_dataset.resize((sid_dataset.shape[0] + new_sids.shape[0]), axis=0)
                 sid_dataset[-new_sids.shape[0] :] = sids
@@ -482,11 +485,14 @@ class HDF5DailyBarWriter:
             if data_group.get(field, None) is None:
                 dataset = data_group.create_dataset(
                     field,
-                    compression="lzf",
-                    shuffle=True,
                     data=data,
-                    chunks=True,
                     maxshape=(None, None),
+                    # shuffle=True,
+                    # compression="lzf",
+                    chunks=True,
+                    **hdf5plugin.Blosc(
+                        cname="blosclz", clevel=9, shuffle=hdf5plugin.Blosc.SHUFFLE
+                    ),
                 )
                 self._log_writing_dataset(dataset)
             else:
@@ -495,8 +501,14 @@ class HDF5DailyBarWriter:
                     data_group[field].resize(data.shape)
                     data_group[field][:] = data
                 else:
-                    data_group[field].resize(dataset_shape[1] + data.shape[1], axis=1)
-                    data_group[field][:, -data.shape[1] :] = data
+                    nsids = len(country_group[INDEX][SID])
+                    ndays = len(country_group[INDEX][DAY])
+                    data_group[field].resize((nsids, ndays))
+                    # find which sids need to be inserted and where
+                    sid_idx = country_group[INDEX][SID][:].searchsorted(
+                        self._sids, "left"
+                    )
+                    data_group[field][sid_idx, -data.shape[1] :] = data
 
             data_group[field].attrs[SCALING_FACTOR] = scaling_factors[field]
 
@@ -538,11 +550,14 @@ def compute_asset_lifetimes(frames):
     return start_date_ixs, end_date_ixs
 
 
-def convert_with_scaling_factor(a, scaling_factor):
+def convert_with_scaling_factor(a, scaling_factor, to_nan=True):
     # TODO: we should be able to pass the type aware i.e. VOLUME not treated as float
     conversion_factor = 1.0 / scaling_factor
     zeroes = a == 0
-    return np.where(zeroes, np.nan, a.astype("float64")) * conversion_factor
+    if to_nan:
+        return np.where(zeroes, np.nan, a.astype("float64")) * conversion_factor
+    else:
+        return a * conversion_factor
 
 
 class HDF5DailyBarReader(CurrencyAwareSessionBarReader):
@@ -577,6 +592,7 @@ class HDF5DailyBarReader(CurrencyAwareSessionBarReader):
             VOLUME: partial(
                 convert_with_scaling_factor,
                 scaling_factor=self._read_scaling_factor(VOLUME),
+                to_nan=False,
             ),
         }
 
@@ -892,7 +908,6 @@ class HDF5DailyBarReader(CurrencyAwareSessionBarReader):
     def get_last_traded_dt(self, asset, dt):
         """
         Get the latest day on or before ``dt`` in which ``asset`` traded.
-
         If there are no trades on or before ``dt``, returns ``pd.NaT``.
 
         Parameters
