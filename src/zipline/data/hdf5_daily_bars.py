@@ -218,7 +218,7 @@ class HDF5OverlappingData(Exception):
     pass
 
 
-class HDF5DailyBarWriter:
+class HDF5BarWriter:
     """
     Class capable of writing daily OHLCV data to disk in a format that
     can be read efficiently by HDF5DailyBarReader.
@@ -237,9 +237,12 @@ class HDF5DailyBarWriter:
     zipline.data.hdf5_daily_bars.HDF5DailyBarReader
     """
 
-    def __init__(self, filename, date_chunk_size):
+    def __init__(self, filename, date_chunk_size, data_frequency="daily"):
         self._filename = filename
         self._date_chunk_size = date_chunk_size
+        if data_frequency.lower() not in ["minute", "daily"]:
+            raise ValueError(f"{data_frequency} is not valid only: 'daily' or 'minute'")
+        self._data_frequency = data_frequency
 
     def h5_file(self, mode):
         return h5py.File(self._filename, mode)
@@ -309,6 +312,7 @@ class HDF5DailyBarWriter:
         with self.h5_file(mode="a") as self.h5_rwfile:
             # ensure that the file version has been written
             self.h5_rwfile.attrs["version"] = VERSION
+            self.h5_rwfile.attrs["data_frequency"] = self._data_frequency
 
             country_group = self.h5_rwfile.get(country_code, None)
             if country_group is None:
@@ -434,10 +438,16 @@ class HDF5DailyBarWriter:
         if country_group.get(LIFETIMES, None) is None:
             lifetimes_group = country_group.create_group(LIFETIMES)
             if len(start_date_ixs) == 0:
-                start_date_ixs = end_date_ixs = np.array([0], dtype="int64")
-            lifetimes_group.create_dataset(START_DATE, data=start_date_ixs)
-            lifetimes_group.create_dataset(END_DATE, data=end_date_ixs)
+                start_date_ixs = end_date_ixs = np.array([], dtype="int64")
+            lifetimes_group.create_dataset(
+                START_DATE, data=start_date_ixs, maxshape=(1,)
+            )
+            lifetimes_group.create_dataset(END_DATE, data=end_date_ixs, maxshape=(1,))
         else:
+            if len(country_group[LIFETIMES][START_DATE]) == 0:
+                country_group[LIFETIMES][START_DATE].resize(1, axis=0)
+                country_group[LIFETIMES][END_DATE].resize(1, axis=0)
+
             country_group[LIFETIMES][START_DATE][:] = 0
             country_group[LIFETIMES][END_DATE][:] = len(country_group[INDEX][DAY]) - 1
 
@@ -566,7 +576,7 @@ def convert_with_scaling_factor(a, scaling_factor, to_nan=True):
         return a * conversion_factor
 
 
-class HDF5DailyBarReader(CurrencyAwareSessionBarReader):
+class HDF5BarReader(CurrencyAwareSessionBarReader):
     """
     Parameters
     ---------
@@ -757,9 +767,15 @@ class HDF5DailyBarReader(CurrencyAwareSessionBarReader):
             )
 
     def _validate_timestamp(self, ts):
-        if not self.trading_calendar.is_session(ts):
-            raise NoDataOnDate(ts)
-
+        # TODO enforce trading calendar
+        # For the moment silently checks fore session
+        if hasattr(self, "trading_calendar"):
+            if self.data_frequency == "minute":
+                if not self.trading_calendar.is_open_on_minute(ts):
+                    raise NoDataOnDate(ts)
+            elif self.data_frequency == "daily":
+                if not self.trading_calendar.is_session(ts):
+                    raise NoDataOnDate(ts)
         if ts.asm8 < self.dates[0]:
             raise NoDataBeforeDate(self.dates[0])
 
@@ -768,6 +784,14 @@ class HDF5DailyBarReader(CurrencyAwareSessionBarReader):
 
         if ts.asm8 not in self.dates:
             return True
+
+    @property
+    def data_frequency(self):
+        return self._country_group.parent.attrs["data_frequency"]
+
+    @property
+    def version(self):
+        return self._country_group.parent.attrs["version"]
 
     # @lazyval
     @property
@@ -980,7 +1004,7 @@ class MultiCountryDailyBarReader(CurrencyAwareSessionBarReader):
         """
         return cls(
             {
-                country: HDF5DailyBarReader.from_file(h5_file, country)
+                country: HDF5BarReader.from_file(h5_file, country)
                 for country in h5_file.keys()
             }
         )

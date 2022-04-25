@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 from zipline.data.hdf5_daily_bars import (
-    HDF5DailyBarReader,
-    HDF5DailyBarWriter,
+    HDF5BarReader,
+    HDF5BarWriter,
     MultiCountryDailyBarReader,
 )
 from zipline.testing.predicates import assert_equal
@@ -17,10 +17,10 @@ class TestHDF5Writer:
         special cased logic in the writer.
         """
         path = tmp_path / "empty.h5"
-        writer = HDF5DailyBarWriter(path, date_chunk_size=30)
+        writer = HDF5BarWriter(path, date_chunk_size=30)
         writer.write_from_sid_df_pairs("US", iter(()))
 
-        reader = HDF5DailyBarReader.from_path(path, "US")
+        reader = HDF5BarReader.from_path(path, "US")
 
         assert_equal(reader.sids, np.array([], dtype="int64"))
 
@@ -31,7 +31,7 @@ class TestHDF5Writer:
 
     def test_multi_country_attributes(self, tmp_path):
         path = tmp_path / "multi.h5"
-        writer = HDF5DailyBarWriter(path, date_chunk_size=30)
+        writer = HDF5BarWriter(path, date_chunk_size=30)
 
         US = pd.DataFrame(
             data=np.ones((3, 5)),

@@ -25,7 +25,7 @@ import pytest
 import pytz
 import zipline.utils.factory as factory
 from testfixtures import TempDirectory
-from zipline.data.hdf5_daily_bars import HDF5DailyBarReader, HDF5DailyBarWriter
+from zipline.data.hdf5_daily_bars import HDF5BarReader, HDF5BarWriter
 from zipline.data.data_portal import DataPortal
 from zipline.data.bcolz_minute_bars import BcolzMinuteBarReader
 from zipline.finance.asset_restrictions import NoRestrictions
@@ -279,13 +279,13 @@ class TestFinance:
 
                 path = Path(tempdir.path) / "testdata.h5"
                 #### TODO : CLEANUP AND FINISH
-                HDF5DailyBarWriter(path, 30).write_from_sid_df_pairs(
+                HDF5BarWriter(path, 30).write_from_sid_df_pairs(
                     "US",
                     assets.items(),
                     exchange_name=self.trading_calendar.name,
                 )
 
-                equity_daily_reader = HDF5DailyBarReader.from_path(path, "US")
+                equity_daily_reader = HDF5BarReader.from_path(path, "US")
 
                 data_portal = DataPortal(
                     self.asset_finder,

@@ -23,8 +23,8 @@ from numpy.testing import assert_almost_equal, assert_array_equal
 from zipline.data.bar_reader import NoDataForSid, NoDataOnDate
 from zipline.data.hdf5_daily_bars import (
     HDF5OverlappingData,
-    HDF5DailyBarWriter as HDF5MinuteBarWriter,
-    HDF5DailyBarReader as HDF5MinuteBarReader,
+    HDF5BarWriter,
+    HDF5BarReader,
     VERSION as HDF5_FILE_VERSION,
 )
 from zipline.data.bcolz_minute_bars import (
@@ -76,15 +76,18 @@ class HDF5MinuteBarTestCase(
 
         self.dest = self.instance_tmpdir.getpath("")
         self.file_path = Path(self.dest, "minute_bars.h5")
-        self.writer = HDF5MinuteBarWriter(
+        self.writer = HDF5BarWriter(
             self.file_path,
             US_EQUITIES_MINUTES_PER_DAY,
+            data_frequency="minute",
         )
-        self.writer.write_from_sid_df_pairs("US", iter(()))
-        self.reader = HDF5MinuteBarReader.from_path(self.file_path, "US")
+        self.writer.write_from_sid_df_pairs(
+            "US", iter(()), exchange_name=self.trading_calendar.name
+        )
+        self.reader = HDF5BarReader.from_path(self.file_path, "US")
 
     def test_version(self):
-        hdf5_version = self.reader._country_group.parent.attrs["version"]
+        hdf5_version = self.reader.version
         assert hdf5_version == HDF5_FILE_VERSION
 
     def test_no_minute_bars_for_sid(self):
@@ -149,9 +152,8 @@ class HDF5MinuteBarTestCase(
             index=[minute],
         )
         file_name = self.writer._filename
-        writer = HDF5MinuteBarWriter(
-            file_name,
-            US_EQUITIES_MINUTES_PER_DAY,
+        writer = HDF5BarWriter(
+            file_name, US_EQUITIES_MINUTES_PER_DAY, data_frequency="minute"
         )
         # Create a new writer with `ohlc_ratios_per_sid` defined.
         scaling_factors = dict(zip(data.columns, [25, 25, 25, 25, 10]))
@@ -161,7 +163,7 @@ class HDF5MinuteBarTestCase(
             scaling_factors=scaling_factors,
         )
 
-        reader = HDF5MinuteBarReader.from_path(file_name, "US")
+        reader = HDF5BarReader.from_path(file_name, "US")
 
         for field in data:
             val = reader.get_value(sid, minute, field)
@@ -339,16 +341,15 @@ class HDF5MinuteBarTestCase(
         # of appending new days will be writing to an existing directory.
         cday = self.trading_calendar.schedule.index.freq
         # new_end_session = TEST_CALENDAR_STOP + cday
-        writer = HDF5MinuteBarWriter(
-            file_name,
-            US_EQUITIES_MINUTES_PER_DAY,
+        writer = HDF5BarWriter(
+            file_name, US_EQUITIES_MINUTES_PER_DAY, data_frequency="minute"
         )
         next_day_minute = dt + cday
         new_data = pd.DataFrame(data=ohlcv, index=[next_day_minute])
         writer.write_from_sid_df_pairs("US", ((sid, new_data * 0.5),))
 
         # Get a new reader to test updated calendar.
-        reader = HDF5MinuteBarReader.from_path(file_name, "US")
+        reader = HDF5BarReader.from_path(file_name, "US")
 
         second_minute = dt + pd.Timedelta(minutes=1)
 
@@ -661,7 +662,7 @@ class HDF5MinuteBarTestCase(
         self.writer.write_from_sid_df_pairs("US", ((sids[1], data_2),))
 
         file_name = self.writer._filename
-        reader = HDF5MinuteBarReader.from_path(file_name, "US")
+        reader = HDF5BarReader.from_path(file_name, "US")
 
         columns = ["open", "high", "low", "close", "volume"]
 

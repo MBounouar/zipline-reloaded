@@ -61,8 +61,8 @@ from ..data.fx import (
     HDF5FXRateWriter,
 )
 from ..data.hdf5_daily_bars import (
-    HDF5DailyBarReader,
-    HDF5DailyBarWriter,
+    HDF5BarReader,
+    HDF5BarWriter,
     MultiCountryDailyBarReader,
 )
 from ..data.bcolz_minute_bars import (
@@ -1239,7 +1239,7 @@ class WithWriteHDF5DailyBars(WithEquityDailyBarData, WithTmpDir):
              teardown.
         """
         ensure_directory_containing(path)
-        writer = HDF5DailyBarWriter(path, cls.HDF5_DAILY_BAR_CHUNK_SIZE)
+        writer = HDF5BarWriter(path, cls.HDF5_DAILY_BAR_CHUNK_SIZE)
         write_hdf5_daily_bars(
             writer,
             cls.asset_finder,
@@ -1307,8 +1307,7 @@ class WithHDF5EquityMultiCountryDailyBarReader(WithWriteHDF5DailyBars):
         f = cls.write_hdf5_daily_bars(path, cls.HDF5_DAILY_BAR_COUNTRY_CODES)
 
         cls.single_country_hdf5_equity_daily_bar_readers = {
-            country_code: HDF5DailyBarReader.from_file(f, country_code)
-            for country_code in f
+            country_code: HDF5BarReader.from_file(f, country_code) for country_code in f
         }
 
         cls.hdf5_equity_daily_bar_reader = MultiCountryDailyBarReader(

@@ -21,7 +21,7 @@ from zipline.utils.preprocess import preprocess
 from ..adjustments import SQLiteAdjustmentReader, SQLiteAdjustmentWriter
 
 # from ..bcolz_daily_bars import BcolzDailyBarReader, BcolzDailyBarWriter
-from ..hdf5_daily_bars import HDF5DailyBarWriter, HDF5DailyBarReader
+from ..hdf5_daily_bars import HDF5BarWriter, HDF5BarReader
 from ..bcolz_minute_bars import BcolzMinuteBarReader, BcolzMinuteBarWriter
 
 log = Logger(__name__)
@@ -399,7 +399,7 @@ def _make_bundle_core():
                     pth.data_path([], environ=environ),
                     *daily_equity_relative(name, timestr, h5=True),
                 )
-                daily_bar_writer = HDF5DailyBarWriter(daily_bars_path_h5, 30)
+                daily_bar_writer = HDF5BarWriter(daily_bars_path_h5, 30)
                 # Do an empty write to ensure that the daily ctables exist
                 # when we create the SQLiteAdjustmentWriter below. The
                 # SQLiteAdjustmentWriter needs to open the daily ctables so
@@ -419,7 +419,7 @@ def _make_bundle_core():
                     # stack.enter_context(
                     wd.getpath(*adjustment_db_relative(name, timestr)),
                     # BcolzDailyBarReader(daily_bars_path),
-                    HDF5DailyBarReader.from_path(str(daily_bars_path_h5), "US"),
+                    HDF5BarReader.from_path(str(daily_bars_path_h5), "US"),
                     overwrite=True,
                 )
                 # )
@@ -534,7 +534,7 @@ def _make_bundle_core():
             # equity_daily_bar_reader=BcolzDailyBarReader(
             #     daily_equity_path(name, timestr, environ=environ),
             # ),
-            equity_daily_bar_reader=HDF5DailyBarReader.from_path(
+            equity_daily_bar_reader=HDF5BarReader.from_path(
                 str(daily_equity_path(name, timestr, environ=environ, h5=True)), "US"
             ),
             adjustment_reader=SQLiteAdjustmentReader(
