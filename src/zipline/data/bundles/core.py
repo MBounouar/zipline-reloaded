@@ -19,7 +19,8 @@ from zipline.utils.input_validation import ensure_timestamp, optionally
 from zipline.utils.preprocess import preprocess
 
 from ..adjustments import SQLiteAdjustmentReader, SQLiteAdjustmentWriter
-from ..bcolz_daily_bars import BcolzDailyBarReader, BcolzDailyBarWriter
+
+# from ..bcolz_daily_bars import BcolzDailyBarReader, BcolzDailyBarWriter
 from ..hdf5_daily_bars import HDF5DailyBarWriter, HDF5DailyBarReader
 from ..bcolz_minute_bars import BcolzMinuteBarReader, BcolzMinuteBarWriter
 

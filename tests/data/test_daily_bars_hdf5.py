@@ -280,7 +280,7 @@ class _HDF5DailyBarTestCase(
         )
 
         for invalid_date in INVALID_DATES:
-            with pytest.raises(NoDataOnDate):
+            with pytest.raises((NoDataOnDate, NoDataAfterDate, NoDataBeforeDate)):
                 self.daily_bar_reader.load_raw_arrays(
                     OHLCV,
                     invalid_date,
@@ -288,7 +288,7 @@ class _HDF5DailyBarTestCase(
                     self.assets,
                 )
 
-            with pytest.raises(NoDataOnDate):
+            with pytest.raises((NoDataOnDate, NoDataAfterDate, NoDataBeforeDate)):
                 self.daily_bar_reader.get_value(
                     self.assets[0],
                     invalid_date,

@@ -1158,13 +1158,13 @@ class WithBcolzFutureDailyBarReader(WithFutureDailyBarData, WithTmpDir):
     def init_class_fixtures(cls):
         super(WithBcolzFutureDailyBarReader, cls).init_class_fixtures()
 
-        p = cls.make_bcolz_future_daily_bar_rootdir_path()
-        cls.future_bcolz_daily_bar_path = p
+        root_path = cls.make_bcolz_future_daily_bar_rootdir_path()
+        cls.future_bcolz_daily_bar_path = root_path
         days = cls.future_daily_bar_days
 
         trading_calendar = cls.trading_calendars[Future]
         cls.future_bcolz_daily_bar_ctable = t = getattr(
-            BcolzDailyBarWriter(p, trading_calendar, days[0], days[-1]),
+            BcolzDailyBarWriter(root_path, trading_calendar, days[0], days[-1]),
             cls.BCOLZ_FUTURE_DAILY_BAR_WRITE_METHOD_NAME,
         )(
             cls.make_future_daily_bar_data(),

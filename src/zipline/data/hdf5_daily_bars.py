@@ -241,8 +241,8 @@ class HDF5DailyBarWriter:
         self._filename = filename
         self._date_chunk_size = date_chunk_size
 
-    # def h5_file(self, mode):
-    #   return h5py.File(self._filename, mode)
+    def h5_file(self, mode):
+        return h5py.File(self._filename, mode)
 
     def write(
         self,
@@ -306,7 +306,7 @@ class HDF5DailyBarWriter:
             # h5py crashes if we provide chunks for empty data.
             chunks = None
 
-        with h5py.File(self._filename, "a") as self.h5_rwfile:
+        with self.h5_file(mode="a") as self.h5_rwfile:
             # ensure that the file version has been written
             self.h5_rwfile.attrs["version"] = VERSION
 
@@ -400,25 +400,31 @@ class HDF5DailyBarWriter:
             self._log_writing_dataset(index_group)
         else:
             sid_dataset = country_group[INDEX][SID]
-            new_sids = np.array(list(set(sids) - set(sid_dataset[:])), dtype=np.int64)
+            new_sids = np.setdiff1d(sids, sid_dataset[:])
             day_dataset = country_group[INDEX][DAY]
             days_ns = days.astype(np.int64)
-            # if np.any(np.isin(days_ns, day_dataset[...])):
-            #     dt = days_ns[np.isin(days_ns, day_dataset[...])].astype(
-            #         "datetime64[ns]"
-            #     )[0]
 
-            #     raise HDF5OverlappingData(f"Data already includes input from {dt} ")
-            if len(new_sids) > 0:
-                sid_dataset.resize((sid_dataset.shape[0] + new_sids.shape[0]), axis=0)
-                sid_dataset[-new_sids.shape[0] :] = sids
+            # Check that we don't allow for overwriting sid data
+            if np.any(np.isin(sids, sid_dataset[:])) and np.any(
+                np.isin(days_ns, day_dataset[...])
+            ):
+                dts = days_ns[np.isin(days_ns, day_dataset[...])].astype(
+                    "datetime64[ns]"
+                )
+                ids = np.intersect1d(sids, sid_dataset[:])
+                raise HDF5OverlappingData(
+                    f"Data already includes input from date: {dts} and sid: {ids}"
+                    "We can only add a new instrument that has same timestamps or append forward"
+                )
 
-            # if len(day_dataset) != 0:
-            #     idx = days_ns.searchsorted(day_dataset[...][-1], "left")
-            #     days_ns = days_ns[idx + 1 :]
             if len(days_ns) > 0 and not np.all(np.isin(days_ns, day_dataset[...])):
                 day_dataset.resize((day_dataset.shape[0] + days_ns.shape[0]), axis=0)
                 day_dataset[-days_ns.shape[0] :] = days_ns
+
+            if len(new_sids) > 0:
+                # We have new sids
+                sid_dataset.resize((sid_dataset.shape[0] + new_sids.shape[0]), axis=0)
+                sid_dataset[-new_sids.shape[0] :] = new_sids
 
         # h5py does not support datetimes, so they need to be stored
         # as integers.
@@ -751,11 +757,17 @@ class HDF5DailyBarReader(CurrencyAwareSessionBarReader):
             )
 
     def _validate_timestamp(self, ts):
+        if not self.trading_calendar.is_session(ts):
+            raise NoDataOnDate(ts)
+
+        if ts.asm8 < self.dates[0]:
+            raise NoDataBeforeDate(self.dates[0])
+
+        if ts.asm8 > self.dates[-1]:
+            raise NoDataAfterDate(self.dates[-1])
+
         if ts.asm8 not in self.dates:
-            if ts.asm8 < self.dates[-1]:
-                return True
-            else:
-                raise NoDataOnDate(ts)
+            return True
 
     # @lazyval
     @property
@@ -898,10 +910,10 @@ class HDF5DailyBarReader(CurrencyAwareSessionBarReader):
         # nan is returned.
         if np.isnan(value):
             if dt.asm8 < self.asset_start_dates[sid_ix]:
-                raise NoDataBeforeDate()
+                raise NoDataBeforeDate(dt)
 
             if dt.asm8 > self.asset_end_dates[sid_ix]:
-                raise NoDataAfterDate()
+                raise NoDataAfterDate(dt)
 
         return value
 
