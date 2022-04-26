@@ -22,7 +22,8 @@ from ..adjustments import SQLiteAdjustmentReader, SQLiteAdjustmentWriter
 
 # from ..bcolz_daily_bars import BcolzDailyBarReader, BcolzDailyBarWriter
 from ..hdf5_daily_bars import HDF5BarWriter, HDF5BarReader
-from ..bcolz_minute_bars import BcolzMinuteBarReader, BcolzMinuteBarWriter
+
+# from ..bcolz_minute_bars import BcolzMinuteBarReader, BcolzMinuteBarWriter
 
 log = Logger(__name__)
 
@@ -397,21 +398,33 @@ def _make_bundle_core():
                 # )
                 daily_bars_path_h5 = Path(
                     pth.data_path([], environ=environ),
-                    *daily_equity_relative(name, timestr, h5=True),
+                    wd.getpath(*daily_equity_relative(name, timestr, h5=True)),
                 )
+                # TODO create filepath
                 daily_bar_writer = HDF5BarWriter(daily_bars_path_h5, 30)
                 # Do an empty write to ensure that the daily ctables exist
                 # when we create the SQLiteAdjustmentWriter below. The
                 # SQLiteAdjustmentWriter needs to open the daily ctables so
                 # that it can compute the adjustment ratios for the dividends.
                 daily_bar_writer.write_from_sid_df_pairs("US", iter(()))
-                minute_bar_writer = BcolzMinuteBarWriter(
-                    wd.ensure_dir(*minute_equity_relative(name, timestr)),
-                    calendar,
-                    start_session,
-                    end_session,
-                    minutes_per_day=bundle.minutes_per_day,
+
+                minutes_bars_path_h5 = Path(
+                    pth.data_path([], environ=environ),
+                    wd.getpath(*minute_equity_relative(name, timestr, h5=True)),
                 )
+
+                minute_bar_writer = HDF5BarWriter(
+                    minutes_bars_path_h5, 30, data_frequency="minute"
+                )
+                daily_bar_writer.write_from_sid_df_pairs("US", iter(()))
+
+                # minute_bar_writer = BcolzMinuteBarWriter(
+                #     wd.ensure_dir(*minute_equity_relative(name, timestr)),
+                #     calendar,
+                #     start_session,
+                #     end_session,
+                #     minutes_per_day=bundle.minutes_per_day,
+                # )
                 assets_db_path = wd.getpath(*asset_db_relative(name, timestr))
                 asset_db_writer = AssetDBWriter(assets_db_path)
                 adjustment_db_writer = None
@@ -528,8 +541,11 @@ def _make_bundle_core():
             asset_finder=AssetFinder(
                 asset_db_path(name, timestr, environ=environ),
             ),
-            equity_minute_bar_reader=BcolzMinuteBarReader(
-                minute_equity_path(name, timestr, environ=environ),
+            # equity_minute_bar_reader=BcolzMinuteBarReader(
+            #     minute_equity_path(name, timestr, environ=environ),
+            # ),
+            equity_minute_bar_reader=HDF5BarReader.from_path(
+                str(minute_equity_path(name, timestr, environ=environ, h5=True)), "US"
             ),
             # equity_daily_bar_reader=BcolzDailyBarReader(
             #     daily_equity_path(name, timestr, environ=environ),
