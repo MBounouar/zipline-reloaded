@@ -302,6 +302,8 @@ class HDF5BarWriter:
 
         # Write start and end dates for each sid.
         start_date_ixs, end_date_ixs = compute_asset_lifetimes(frames)
+        start_dates = days[start_date_ixs].astype("int64")
+        end_dates = days[end_date_ixs].astype("int64")
 
         if len(sids):
             chunks = (len(sids), min(self._date_chunk_size, len(days)))
@@ -319,7 +321,8 @@ class HDF5BarWriter:
                 country_group = self.h5_rwfile.create_group(country_code)
 
             self._write_index_group(country_group, days, sids)
-            self._write_lifetimes_group(country_group, start_date_ixs, end_date_ixs)
+
+            self._write_lifetimes_group(country_group, sids, start_dates, end_dates)
             self._write_currency_group(country_group, currency_codes)
             self._write_trading_calendar_group(country_group, exchange_name)
             self._write_data_group(
@@ -433,23 +436,77 @@ class HDF5BarWriter:
         # h5py does not support datetimes, so they need to be stored
         # as integers.
 
-    def _write_lifetimes_group(self, country_group, start_date_ixs, end_date_ixs):
+    def _write_lifetimes_group(self, country_group, sids, start_dates, end_dates):
         """Write /country/lifetimes"""
         if country_group.get(LIFETIMES, None) is None:
             lifetimes_group = country_group.create_group(LIFETIMES)
-            if len(start_date_ixs) == 0:
-                start_date_ixs = end_date_ixs = np.array([], dtype="int64")
-            lifetimes_group.create_dataset(
-                START_DATE, data=start_date_ixs, maxshape=(1,)
-            )
-            lifetimes_group.create_dataset(END_DATE, data=end_date_ixs, maxshape=(1,))
-        else:
-            if len(country_group[LIFETIMES][START_DATE]) == 0:
-                country_group[LIFETIMES][START_DATE].resize(1, axis=0)
-                country_group[LIFETIMES][END_DATE].resize(1, axis=0)
 
-            country_group[LIFETIMES][START_DATE][:] = 0
-            country_group[LIFETIMES][END_DATE][:] = len(country_group[INDEX][DAY]) - 1
+            if len(start_dates) == 0:
+                start_date_ixs = end_date_ixs = np.array([], dtype="int64")
+            else:
+                start_date_ixs = np.searchsorted(
+                    country_group[INDEX][DAY][:],
+                    start_dates,
+                )
+                end_date_ixs = np.searchsorted(
+                    country_group[INDEX][DAY][:],
+                    end_dates,
+                )
+
+            lifetimes_group.create_dataset(
+                START_DATE,
+                data=start_date_ixs,
+                maxshape=(None,),
+            )
+            lifetimes_group.create_dataset(
+                END_DATE,
+                data=end_date_ixs,
+                maxshape=(None,),
+            )
+        else:
+            # Do we have new sids or old sids or a mix ?
+            start_date_ixs = np.searchsorted(country_group[INDEX][DAY][:], start_dates)
+            end_date_ixs = np.searchsorted(country_group[INDEX][DAY][:], end_dates)
+
+            # We have no previous data just resize and assign the whole data
+            if len(country_group[LIFETIMES][START_DATE][:]) == 0:
+                country_group[LIFETIMES][START_DATE].resize(len(start_date_ixs), axis=0)
+                country_group[LIFETIMES][END_DATE].resize(len(end_date_ixs), axis=0)
+                country_group[LIFETIMES][START_DATE][:] = start_date_ixs
+                country_group[LIFETIMES][END_DATE][:] = end_date_ixs
+            else:
+                new_starts = dict(zip(sids, start_date_ixs))
+                new_ends = dict(zip(sids, end_date_ixs))
+
+                sid_dataset = country_group[INDEX][SID]
+                start_dt_dataset = country_group[LIFETIMES][START_DATE]
+                end_dt_dataset = country_group[LIFETIMES][END_DATE]
+
+                ends_dt = dict(
+                    zip(sid_dataset[: len(end_dt_dataset[:])], end_dt_dataset[:])
+                )
+
+                # update the start_date only for new sids
+                new_sids = sid_dataset[len(start_dt_dataset[:]) :]
+                if len(new_sids):
+                    n_start_date_ixs = np.array(
+                        [new_starts[sid] for sid in new_sids], dtype="int64"
+                    )
+                    # Resize according to sids lenght
+                    country_group[LIFETIMES][START_DATE].resize(
+                        len(sid_dataset[:]), axis=0
+                    )
+                    country_group[LIFETIMES][START_DATE][
+                        (len(new_sids)) :
+                    ] = n_start_date_ixs
+
+                # Resize according to sids lenght
+                country_group[LIFETIMES][END_DATE].resize(len(sid_dataset[:]), axis=0)
+
+                # Ordering should be preserved
+                ends_dt.update(new_ends)
+
+                country_group[LIFETIMES][END_DATE][:] = np.array(list(ends_dt), dtype="int64")
 
         self._log_writing_dataset(country_group[LIFETIMES])
 
@@ -769,7 +826,7 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
     def _validate_timestamp(self, ts):
         # TODO enforce trading calendar
         # For the moment silently checks fore session
-        if hasattr(self, "trading_calendar"):
+        if self.trading_calendar is not None:
             if self.data_frequency == "minute":
                 if not self.trading_calendar.is_open_on_minute(ts):
                     raise NoDataOnDate(ts)
