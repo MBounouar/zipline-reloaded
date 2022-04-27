@@ -35,9 +35,9 @@ def asset_db_path(bundle_name, timestr, environ=None, db_version=None):
     )
 
 
-def minute_equity_path(bundle_name, timestr, environ=None):
+def minute_equity_path(bundle_name, timestr, environ=None, h5=False):
     return pth.data_path(
-        minute_equity_relative(bundle_name, timestr),
+        minute_equity_relative(bundle_name, timestr, h5),
         environ=environ,
     )
 
@@ -400,7 +400,10 @@ def _make_bundle_core():
                     pth.data_path([], environ=environ),
                     wd.getpath(*daily_equity_relative(name, timestr, h5=True)),
                 )
-                # TODO create filepath
+
+                # Ensure that the directory exists
+                daily_bars_path_h5.parent.mkdir(parents=True, exist_ok=True)
+
                 daily_bar_writer = HDF5BarWriter(daily_bars_path_h5, 30)
                 # Do an empty write to ensure that the daily ctables exist
                 # when we create the SQLiteAdjustmentWriter below. The
@@ -416,7 +419,7 @@ def _make_bundle_core():
                 minute_bar_writer = HDF5BarWriter(
                     minutes_bars_path_h5, 30, data_frequency="minute"
                 )
-                daily_bar_writer.write_from_sid_df_pairs("US", iter(()))
+                # daily_bar_writer.write_from_sid_df_pairs("US", iter(()))
 
                 # minute_bar_writer = BcolzMinuteBarWriter(
                 #     wd.ensure_dir(*minute_equity_relative(name, timestr)),

@@ -506,7 +506,9 @@ class HDF5BarWriter:
                 # Ordering should be preserved
                 ends_dt.update(new_ends)
 
-                country_group[LIFETIMES][END_DATE][:] = np.array(list(ends_dt), dtype="int64")
+                country_group[LIFETIMES][END_DATE][:] = np.array(
+                    list(ends_dt), dtype="int64"
+                )
 
         self._log_writing_dataset(country_group[LIFETIMES])
 
@@ -733,7 +735,7 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
         end = end_date.asm8
         date_slice = self._compute_date_range_slice(start, end)
         n_dates = date_slice.stop - date_slice.start
-
+        # TODO PADDING
         # Create a buffer into which we'll read data from the h5 file.
         # Allocate an extra row of space that will always contain null values.
         # We'll use that space to provide "data" for entries in ``assets`` that
@@ -755,7 +757,6 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
         for column in columns:
             # Zero the buffer to prepare to receive new data.
             mutable_buf.fill(0)
-
             dataset = self._country_group[DATA][column]
 
             # Fill the mutable portion of our buffer with data from the file.
@@ -836,11 +837,13 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
         if ts.asm8 < self.dates[0]:
             raise NoDataBeforeDate(self.dates[0])
 
-        if ts.asm8 > self.dates[-1]:
-            raise NoDataAfterDate(self.dates[-1])
+        # if ts.asm8 > self.dates[-1]:
+        #     raise NoDataAfterDate(self.dates[-1])
 
-        if ts.asm8 not in self.dates:
+        elif ts.asm8 not in self.dates:
             return True
+        else:
+            return False
 
     @property
     def data_frequency(self):

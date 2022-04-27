@@ -174,7 +174,10 @@ class TestBundleCore:
             assert environ is self.environ
 
             asset_db_writer.write(equities=equities)
-            minute_bar_writer.write(minute_bar_data)
+
+            minute_bar_writer.write_from_sid_df_pairs(
+                "US", minute_bar_data, exchange_name=calendar.name
+            )
             daily_bar_writer.write_from_sid_df_pairs(
                 "US", daily_bar_data, exchange_name=calendar.name
             )
