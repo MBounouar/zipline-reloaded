@@ -409,7 +409,9 @@ def _make_bundle_core():
                 # when we create the SQLiteAdjustmentWriter below. The
                 # SQLiteAdjustmentWriter needs to open the daily ctables so
                 # that it can compute the adjustment ratios for the dividends.
-                daily_bar_writer.write_from_sid_df_pairs("US", iter(()))
+                daily_bar_writer.write_from_sid_df_pairs(
+                    "US", iter(()), bundle.calendar_name
+                )
 
                 minutes_bars_path_h5 = Path(
                     pth.data_path([], environ=environ),
@@ -418,6 +420,9 @@ def _make_bundle_core():
 
                 minute_bar_writer = HDF5BarWriter(
                     minutes_bars_path_h5, 30, data_frequency="minute"
+                )
+                minute_bar_writer.write_from_sid_df_pairs(
+                    "US", iter(()), bundle.calendar_name
                 )
                 # daily_bar_writer.write_from_sid_df_pairs("US", iter(()))
 

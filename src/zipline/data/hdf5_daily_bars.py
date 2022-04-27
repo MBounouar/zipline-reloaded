@@ -753,23 +753,15 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
         source_date_slice = self._compute_date_range_slice(start, end)
 
         if self.data_frequency == "minute":
-            # All valid session minutes
+            # All valid session minutes within start_date and end_date
             session_minutes = self.trading_calendar.minutes_in_range(
                 start_date, end_date
             )
-            n_dates = len(session_minutes)
-            # retrieve all valid minutes within start and end date `inclusive`
-            session_minutes = session_minutes[
-                slice(*session_minutes.slice_locs(start_date, end_date))
-            ]
 
-            dest_date_slice = slice(
-                self.dates.searchsorted(
-                    self.dates[source_date_slice.start], side="left"
-                ),
-                self.dates.searchsorted(
-                    self.dates[source_date_slice.stop - 1], side="right"
-                ),
+            n_dates = len(session_minutes)
+
+            dest_date_slice = session_minutes.astype("datetime64[ns]").searchsorted(
+                self.dates[source_date_slice]
             )
         else:
             dest_date_slice = source_date_slice
@@ -802,8 +794,8 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
             if self.data_frequency == "minute":
                 dataset.read_direct(
                     mutable_buf,
-                    np.s_[:, source_date_slice],
-                    np.s_[:, dest_date_slice],
+                    source_sel=np.s_[:, source_date_slice],
+                    dest_sel=np.s_[:, dest_date_slice],
                 )
             else:
                 dataset.read_direct(
