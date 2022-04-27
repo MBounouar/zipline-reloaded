@@ -1808,7 +1808,7 @@ class DailySummary(SingleInputMixin, Factor):
         # requires extra care for handling NaT.
         if dtype != float64_dtype:
             raise AssertionError(
-                "DailySummary only supports float64 dtype, got {}".format(dtype),
+                f"DailySummary only supports float64 dtype, got {dtype}",
             )
 
         return super(DailySummary, cls).__new__(

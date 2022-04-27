@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from numpy.testing import assert_almost_equal, assert_array_equal
-from zipline.data.bar_reader import NoDataForSid, NoDataOnDate
+from zipline.data.bar_reader import NoDataForSid, NoDataOnDate, NotValidDate
 from zipline.data.hdf5_daily_bars import (
     HDF5OverlappingData,
     HDF5BarWriter,
@@ -646,7 +646,11 @@ class HDF5MinuteBarTestCase(
             },
             index=minutes,
         )
-        self.writer.write_from_sid_df_pairs("US", ((sids[0], data_1),))
+        self.writer.write_from_sid_df_pairs(
+            "US",
+            ((sids[0], data_1),),
+            exchange_name=self.trading_calendar.name,
+        )
 
         data_2 = pd.DataFrame(
             data={
@@ -659,7 +663,11 @@ class HDF5MinuteBarTestCase(
             index=minutes,
         )
 
-        self.writer.write_from_sid_df_pairs("US", ((sids[1], data_2),))
+        self.writer.write_from_sid_df_pairs(
+            "US",
+            ((sids[1], data_2),),
+            exchange_name=self.trading_calendar.name,
+        )
 
         file_name = self.writer._filename
         reader = HDF5BarReader.from_path(file_name, "US")
@@ -709,7 +717,11 @@ class HDF5MinuteBarTestCase(
             },
             index=minutes,
         )
-        self.writer.write_from_sid_df_pairs("US", ((sids[0], data_1),))
+        self.writer.write_from_sid_df_pairs(
+            "US",
+            ((sids[0], data_1),),
+            exchange_name=self.trading_calendar.name,
+        )
 
         data_2 = pd.DataFrame(
             data={
@@ -721,7 +733,11 @@ class HDF5MinuteBarTestCase(
             },
             index=minutes,
         )
-        self.writer.write_from_sid_df_pairs("US", ((sids[1], data_2),))
+        self.writer.write_from_sid_df_pairs(
+            "US",
+            ((sids[1], data_2),),
+            exchange_name=self.trading_calendar.name,
+        )
 
         reader = self.reader
 
@@ -971,6 +987,7 @@ class HDF5MinuteBarTestCase(
         assert self.reader.last_available_dt == last_close
 
     def test_early_market_close(self):
+        """Test if writing non valid dates is allowed"""
         # Date to test is 2015-11-30 9:31
         # Early close is 2015-11-27 18:00
         friday_after_tday = pd.Timestamp("2015-11-27", tz="UTC")
@@ -983,9 +1000,8 @@ class HDF5MinuteBarTestCase(
         minute = self.market_opens[monday_after_tday]
 
         # Test condition where there is data written after the market
-        # close (ideally, this should not occur in datasets, but guards
-        # against consumers of the minute bar writer, which do not filter
-        # out after close minutes.
+        # This will raise a not valid date error
+
         minutes = [before_early_close, after_early_close, minute]
         sid = 1
         data = pd.DataFrame(
@@ -998,18 +1014,7 @@ class HDF5MinuteBarTestCase(
             },
             index=minutes,
         )
-        self.writer.write_from_sid_df_pairs("US", ((sid, data),))
-
-        for field in {"open", "high", "low", "close"}:
-            assert np.isnan(self.reader.get_value(sid, minute, field))
-
-        volume = self.reader.get_value(sid, minute, "volume")
-        assert 0 == volume
-
-        asset = self.asset_finder.retrieve_asset(sid)
-        last_traded_dt = self.reader.get_last_traded_dt(asset, minute)
-        assert last_traded_dt == before_early_close, (
-            "The last traded dt should be before the early "
-            "close, even when data is written between the early "
-            "close and the next open."
-        )
+        with pytest.raises(NotValidDate):
+            self.writer.write_from_sid_df_pairs(
+                "US", ((sid, data),), exchange_name=self.trading_calendar.name
+            )

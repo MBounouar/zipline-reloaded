@@ -117,6 +117,7 @@ from zipline.data.bar_reader import (
     NoDataBeforeDate,
     NoDataForSid,
     NoDataOnDate,
+    NotValidDate,
 )
 from zipline.data.session_bars import CurrencyAwareSessionBarReader
 from zipline.utils.memoize import lazyval
@@ -211,7 +212,7 @@ def days_and_sids_for_frames(frames):
         message="Frames have mismatched sids.",
     )
 
-    return frames[0].index.values, frames[0].columns.values
+    return frames[0].index.values.astype("int64"), frames[0].columns.values
 
 
 class HDF5OverlappingData(Exception):
@@ -246,6 +247,17 @@ class HDF5BarWriter:
 
     def h5_file(self, mode):
         return h5py.File(self._filename, mode)
+
+    def _check_valid_calendar_days(self, days):
+        if self._data_frequency == "minute":
+            is_valid = np.vectorize(self.trading_calendar.is_open_on_minute)
+            valid_ts = is_valid(days)
+        elif self._data_frequency == "daily":
+            is_valid = np.vectorize(self.trading_calendar.is_session)
+            valid_ts = is_valid(np.vectorize(partial(pd.Timestamp, tz="UTC"))(days))
+
+        if np.any(~valid_ts):
+            raise NotValidDate(f"{days[~valid_ts].astype('datetime64[ns]')}")
 
     def write(
         self,
@@ -284,14 +296,19 @@ class HDF5BarWriter:
 
         # Note that this functions validates that all of the frames
         # share the same days and sids.
-        days, sids = days_and_sids_for_frames(list(frames.values()))
+        days_ns, sids = days_and_sids_for_frames(list(frames.values()))
+
+        if exchange_name is not None:
+            self.trading_calendar = get_calendar(exchange_name)
+            if days_ns.size != 0:
+                self._check_valid_calendar_days(days_ns)
+
+        else:
+            exchange_name = "XXX"
 
         # XXX: We should make this required once we're using it everywhere.
         if currency_codes is None:
             currency_codes = pd.Series(index=sids, data=MISSING_CURRENCY)
-
-        if exchange_name is None:
-            exchange_name = "XXX"
 
         # Currency codes should match dataframe columns.
         check_sids_arrays_match(
@@ -302,11 +319,11 @@ class HDF5BarWriter:
 
         # Write start and end dates for each sid.
         start_date_ixs, end_date_ixs = compute_asset_lifetimes(frames)
-        start_dates = days[start_date_ixs].astype("int64")
-        end_dates = days[end_date_ixs].astype("int64")
+        start_dates = days_ns[start_date_ixs]
+        end_dates = days_ns[end_date_ixs]
 
         if len(sids):
-            chunks = (len(sids), min(self._date_chunk_size, len(days)))
+            chunks = (len(sids), min(self._date_chunk_size, len(days_ns)))
         else:
             # h5py crashes if we provide chunks for empty data.
             chunks = None
@@ -320,7 +337,7 @@ class HDF5BarWriter:
             if country_group is None:
                 country_group = self.h5_rwfile.create_group(country_code)
 
-            self._write_index_group(country_group, days, sids)
+            self._write_index_group(country_group, days_ns, sids)
 
             self._write_lifetimes_group(country_group, sids, start_dates, end_dates)
             self._write_currency_group(country_group, currency_codes)
@@ -394,14 +411,14 @@ class HDF5BarWriter:
             exchange_name=exchange_name,
         )
 
-    def _write_index_group(self, country_group, days, sids):
+    def _write_index_group(self, country_group, days_ns, sids):
         """Write /country/index."""
         if country_group.get(INDEX, None) is None:
             index_group = country_group.create_group(INDEX)
             index_group.create_dataset(SID, data=sids, maxshape=(None,))
             index_group.create_dataset(
                 DAY,
-                data=days.astype(np.int64),
+                data=days_ns,
                 maxshape=(None,),
             )
             self._log_writing_dataset(index_group)
@@ -409,7 +426,6 @@ class HDF5BarWriter:
             sid_dataset = country_group[INDEX][SID]
             new_sids = np.setdiff1d(sids, sid_dataset[:])
             day_dataset = country_group[INDEX][DAY]
-            days_ns = days.astype(np.int64)
 
             # Check that we don't allow for overwriting sid data
             if np.any(np.isin(sids, sid_dataset[:])) and np.any(
@@ -733,9 +749,32 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
 
         start = start_date.asm8
         end = end_date.asm8
-        date_slice = self._compute_date_range_slice(start, end)
-        n_dates = date_slice.stop - date_slice.start
-        # TODO PADDING
+
+        source_date_slice = self._compute_date_range_slice(start, end)
+
+        if self.data_frequency == "minute":
+            # All valid session minutes
+            session_minutes = self.trading_calendar.minutes_in_range(
+                start_date, end_date
+            )
+            n_dates = len(session_minutes)
+            # retrieve all valid minutes within start and end date `inclusive`
+            session_minutes = session_minutes[
+                slice(*session_minutes.slice_locs(start_date, end_date))
+            ]
+
+            dest_date_slice = slice(
+                self.dates.searchsorted(
+                    self.dates[source_date_slice.start], side="left"
+                ),
+                self.dates.searchsorted(
+                    self.dates[source_date_slice.stop - 1], side="right"
+                ),
+            )
+        else:
+            dest_date_slice = source_date_slice
+            n_dates = source_date_slice.stop - source_date_slice.start
+
         # Create a buffer into which we'll read data from the h5 file.
         # Allocate an extra row of space that will always contain null values.
         # We'll use that space to provide "data" for entries in ``assets`` that
@@ -760,10 +799,17 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
             dataset = self._country_group[DATA][column]
 
             # Fill the mutable portion of our buffer with data from the file.
-            dataset.read_direct(
-                mutable_buf,
-                np.s_[:, date_slice],
-            )
+            if self.data_frequency == "minute":
+                dataset.read_direct(
+                    mutable_buf,
+                    np.s_[:, source_date_slice],
+                    np.s_[:, dest_date_slice],
+                )
+            else:
+                dataset.read_direct(
+                    mutable_buf,
+                    np.s_[:, source_date_slice],
+                )
 
             # Select data from the **full buffer**. Unknown assets will pull
             # from the last row, which is always empty.
@@ -835,7 +881,9 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
                 if not self.trading_calendar.is_session(ts):
                     raise NoDataOnDate(ts)
         if ts.asm8 < self.dates[0]:
-            raise NoDataBeforeDate(self.dates[0])
+            raise NoDataBeforeDate(f"requested: {ts} earliest date is: {self.dates[0]}")
+        if ts.asm8 > self.dates[-1] and self.data_frequency == "daily":
+            raise NoDataAfterDate(f"requested: {ts} latest date is: {self.dates[-1]}")
 
         # if ts.asm8 > self.dates[-1]:
         #     raise NoDataAfterDate(self.dates[-1])

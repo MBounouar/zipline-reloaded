@@ -14,6 +14,10 @@
 from abc import ABCMeta, abstractmethod, abstractproperty
 
 
+class NotValidDate(Exception):
+    """Raised when a date is not a valid calendar date"""
+
+
 class NoDataOnDate(Exception):
     """Raised when a spot price cannot be found for the sid and date."""
 

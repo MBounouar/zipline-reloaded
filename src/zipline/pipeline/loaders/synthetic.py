@@ -226,7 +226,6 @@ def asset_end(asset_info, asset):
 
 def make_bar_data(asset_info, calendar, holes=None):
     """
-
     For a given asset/date/column combination, we generate a corresponding raw
     value using the following formula for OHLCV columns:
 
@@ -265,10 +264,7 @@ def make_bar_data(asset_info, calendar, holes=None):
         PSEUDO_EPOCH.value
         < calendar.normalize().min().value
         <= asset_info["start_date"].min().value
-    ), "calendar.min(): %s\nasset_info['start_date'].min(): %s" % (
-        calendar.min(),
-        asset_info["start_date"].min(),
-    )
+    ), f"calendar.min(): {calendar.min()}\nasset_info['start_date'].min(): {asset_info['start_date'].min()}"
 
     assert (asset_info["start_date"] < asset_info["end_date"]).all()
 

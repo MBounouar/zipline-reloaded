@@ -167,7 +167,7 @@ class HDF5FXRateReader(implements(FXRateReader)):
         """Column labels for rate groups."""
         raw_dts = self._group[INDEX][DTS][:].astype("M8[ns]")
         if not is_sorted_ascending(raw_dts):
-            raise ValueError("dts are not sorted for {}!".format(self._group))
+            raise ValueError(f"dts are not sorted for {self._group}!")
 
         return pd.DatetimeIndex(raw_dts, tz="UTC")
 

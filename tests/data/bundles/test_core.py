@@ -121,6 +121,9 @@ class TestBundleCore:
         (_, register, _, ingest, load, _) = make_bundle
         calendar = get_calendar("XNYS")
         sessions = calendar.sessions_in_range(self.START_DATE, self.END_DATE)
+
+        # minutes_for_sessions_in_range inclusive the END_DATE as a valid session
+        # We thus have 1950 = 5day * 390mins valid minutes
         minutes = calendar.minutes_for_sessions_in_range(
             self.START_DATE,
             self.END_DATE,
@@ -134,6 +137,15 @@ class TestBundleCore:
         )
 
         daily_bar_data = make_bar_data(equities, sessions)
+        # make_bar_data will only create data up to and not including end_date
+        # thus 1560 minutes of data. load_raw_arrays is supposed to fill the missing with nan
+        # this can be confusing
+        # calendar.minutes_count_for_sessions_in_range(start_date.date(), end_date.date())
+        # 1950 = 5days * 390minutes
+        # self.trading_calendar.execution_minutes_for_sessions_in_range(start_date, end_date)
+        # 1560
+        # self.trading_calendar.minutes_count_for_sessions_in_range(start_date, end_date)
+        # 1560 = 4days * 390minutes
         minute_bar_data = make_bar_data(equities, minutes)
         first_split_ratio = 0.5
         second_split_ratio = 0.1
