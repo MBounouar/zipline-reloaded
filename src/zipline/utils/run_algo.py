@@ -158,16 +158,18 @@ def _run(
         else:
             click.echo(algotext)
 
-    first_trading_day = bundle_data.equity_minute_bar_reader.first_trading_day
+    # first_trading_day = bundle_data.equity_minute_bar_reader.first_trading_day
+    # TODO CHECK Why suddenly using minute bar reader?
+    first_trading_day = bundle_data.equity_daily_bar_reader.first_trading_day
 
     data = DataPortal(
         bundle_data.asset_finder,
         trading_calendar=trading_calendar,
         first_trading_day=first_trading_day,
-        equity_minute_reader=bundle_data.equity_minute_bar_reader,
+        # equity_minute_reader=bundle_data.equity_minute_bar_reader,
         equity_daily_reader=bundle_data.equity_daily_bar_reader,
         adjustment_reader=bundle_data.adjustment_reader,
-        future_minute_reader=bundle_data.equity_minute_bar_reader,
+        # future_minute_reader=bundle_data.equity_minute_bar_reader,
         future_daily_reader=bundle_data.equity_daily_bar_reader,
     )
 

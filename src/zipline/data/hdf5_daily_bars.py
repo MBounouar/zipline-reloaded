@@ -104,7 +104,7 @@ Sample layout of the full file with multiple countries.
 """
 
 from functools import partial
-
+import os
 import h5py
 import hdf5plugin
 import logbook
@@ -125,6 +125,7 @@ from zipline.utils.numpy_utils import bytes_array_to_native_str_object_array
 from zipline.utils.pandas_utils import check_indexes_all_same
 from zipline.utils.calendar_utils import get_calendar
 
+os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
 log = logbook.Logger("HDF5DailyBars")
 
 VERSION = 0
@@ -583,7 +584,8 @@ class HDF5BarWriter:
             frame = frames[field]
 
             # Sort rows by increasing sid, and columns by increasing date.
-            frame.sort_index(inplace=True)
+            # TODO CHECK SORTING SIDS SOUNDS LIKE A BAD IDEA
+            # frame.sort_index(inplace=True) # DISABLED SORTING THIS SOUNDS LIKE A BAD IDEA
             frame.sort_index(axis="columns", inplace=True)
 
             data = coerce_to_uint32(
@@ -722,7 +724,6 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
                 f"mismatched version: file is of version {h5_file.attrs['version']},"
                 f" expected {VERSION}"
             )
-
         return cls(h5_file[country_code])
 
     @classmethod
@@ -846,6 +847,8 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
             values correctly.
         """
         assets = np.array(assets)
+        # sid_selector = self.sids.searchsorted(assets)
+        # TODO fix here
         sid_selector = self.sids.searchsorted(assets)
         unknown = np.in1d(assets, self.sids, invert=True)
         sid_selector[unknown] = -1
@@ -957,17 +960,21 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
             Array of currency codes for listing currencies of ``sids``.
         """
         # Find the index of requested sids in our stored sids.
-        ixs = self.sids.searchsorted(sids, side="left")
+        # TODO CHECK doesn't work if sids are not sorted and if they are sorted this can become a mess
+        # ixs = self.sids.searchsorted(sids, side="left")
 
-        result = self._currency_codes[ixs]
+        return pd.Series(self._currency_codes, index=self.sids)[sids].values
+
+        # result = self._currency_codes[ixs]
 
         # searchsorted returns the index of the next lowest sid if the lookup
         # fails. Fill these sids with the special "missing" sentinel.
-        not_found = self.sids[ixs] != sids
 
-        result[not_found] = None
+    #        not_found = self.sids[ixs] != sids
 
-        return result
+    #        result[not_found] = None
+
+    #        return result
 
     @property
     def last_available_dt(self):
@@ -1037,7 +1044,10 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
         self._validate_assets([sid])
         pad_value = self._validate_timestamp(dt)
 
-        sid_ix = self.sids.searchsorted(sid)
+        # not sorting sids will mess up things
+        # TODO CHECK
+        # sid_ix = self.sids.searchsorted(sid)
+        sid_ix = np.where(self.sids == sid)[0][0]
         dt_ix = self.dates.searchsorted(dt.asm8)
 
         if pad_value:
@@ -1078,7 +1088,8 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
             The day of the last trade for the given asset, using the
             input dt as a vantage point.
         """
-        sid_ix = self.sids.searchsorted(asset.sid)
+        # sid_ix = self.sids.searchsorted(asset.sid)
+        sid_ix = np.where(self.sids == asset.sid)
         # Used to get a slice of all dates up to and including ``dt``.
         dt_limit_ix = self.dates.searchsorted(dt.asm8, side="right")
 
