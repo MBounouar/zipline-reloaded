@@ -18,7 +18,7 @@ class TestHDF5Writer:
         """
         path = tmp_path / "empty.h5"
         writer = HDF5BarWriter(path, date_chunk_size=30)
-        writer.write_from_sid_df_pairs("US", iter(()))
+        writer.write_from_sid_df_pairs("US", iter(()), exchange_name="XNYS")
 
         reader = HDF5BarReader.from_path(path, "US")
 
@@ -41,7 +41,7 @@ class TestHDF5Writer:
 
         CA = pd.DataFrame(
             data=np.ones((2, 4)) * 2,
-            index=pd.to_datetime(["2014-01-04", "2014-01-07"]),
+            index=pd.to_datetime(["2014-01-03", "2014-01-07"]),
             columns=np.arange(100, 104),
         )
 
@@ -54,8 +54,8 @@ class TestHDF5Writer:
                 "volume": frame,
             }
 
-        writer.write("US", ohlcv(US))
-        writer.write("CA", ohlcv(CA))
+        writer.write("US", ohlcv(US), exchange_name="XNYS")
+        writer.write("CA", ohlcv(CA), exchange_name="XTSE")
 
         reader = MultiCountryDailyBarReader.from_path(path)
         assert_equal(reader.countries, {"US", "CA"})
@@ -65,7 +65,6 @@ class TestHDF5Writer:
                 [
                     "2014-01-02",
                     "2014-01-03",
-                    "2014-01-04",
                     "2014-01-06",
                     "2014-01-07",
                 ],

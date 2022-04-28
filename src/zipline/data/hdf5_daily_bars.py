@@ -963,7 +963,12 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
         # TODO CHECK doesn't work if sids are not sorted and if they are sorted this can become a mess
         # ixs = self.sids.searchsorted(sids, side="left")
 
-        return pd.Series(self._currency_codes, index=self.sids)[sids].values
+        return (
+            pd.Series(self._currency_codes, index=self.sids)
+            .reindex(sids)
+            .replace({np.nan: None})
+            .values
+        )
 
         # result = self._currency_codes[ixs]
 
@@ -1089,7 +1094,7 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
             input dt as a vantage point.
         """
         # sid_ix = self.sids.searchsorted(asset.sid)
-        sid_ix = np.where(self.sids == asset.sid)
+        sid_ix = np.where(self.sids == asset.sid)[0][0]
         # Used to get a slice of all dates up to and including ``dt``.
         dt_limit_ix = self.dates.searchsorted(dt.asm8, side="right")
 
@@ -1284,7 +1289,7 @@ class MultiCountryDailyBarReader(CurrencyAwareSessionBarReader):
             country_code = self._country_code_for_assets([sid])
         except ValueError as exc:
             raise NoDataForSid(
-                "Asset not contained in daily pricing file: {}".format(sid)
+                f"Asset not contained in daily pricing file: {sid}"
             ) from exc
         return self._readers[country_code].get_value(sid, dt, field)
 
@@ -1333,12 +1338,10 @@ def check_sids_arrays_match(left, right, message):
     """Check that two 1d arrays of sids are equal"""
     if len(left) != len(right):
         raise ValueError(
-            "{}:\nlen(left) ({}) != len(right) ({})".format(
-                message, len(left), len(right)
-            )
+            f"{message}:\nlen(left) ({len(left)}) != len(right) ({len(right)})"
         )
 
     diff = left != right
     if diff.any():
         (bad_locs,) = np.where(diff)
-        raise ValueError("{}:\n Indices with differences: {}".format(message, bad_locs))
+        raise ValueError(f"{message}:\n Indices with differences: {bad_locs}")
