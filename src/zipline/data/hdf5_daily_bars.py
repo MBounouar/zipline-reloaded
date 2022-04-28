@@ -304,7 +304,7 @@ class HDF5BarWriter:
                 self._check_valid_calendar_days(days_ns)
 
         else:
-            exchange_name = "XXX"
+            raise ValueError("Missing exchange_name")
 
         # XXX: We should make this required once we're using it everywhere.
         if currency_codes is None:
@@ -415,7 +415,11 @@ class HDF5BarWriter:
         """Write /country/index."""
         if country_group.get(INDEX, None) is None:
             index_group = country_group.create_group(INDEX)
-            index_group.create_dataset(SID, data=sids, maxshape=(None,))
+            index_group.create_dataset(
+                SID,
+                data=sids,
+                maxshape=(None,),
+            )
             index_group.create_dataset(
                 DAY,
                 data=days_ns,
@@ -429,18 +433,16 @@ class HDF5BarWriter:
 
             # Check that we don't allow for overwriting sid data
             if np.any(np.isin(sids, sid_dataset[:])) and np.any(
-                np.isin(days_ns, day_dataset[...])
+                np.isin(days_ns, day_dataset[:])
             ):
-                dts = days_ns[np.isin(days_ns, day_dataset[...])].astype(
-                    "datetime64[ns]"
-                )
+                dts = days_ns[np.isin(days_ns, day_dataset[:])].astype("datetime64[ns]")
                 ids = np.intersect1d(sids, sid_dataset[:])
                 raise HDF5OverlappingData(
                     f"Data already includes input from date: {dts} and sid: {ids}"
                     "We can only add a new instrument that has same timestamps or append forward"
                 )
 
-            if len(days_ns) > 0 and not np.all(np.isin(days_ns, day_dataset[...])):
+            if len(days_ns) > 0 and not np.all(np.isin(days_ns, day_dataset[:])):
                 day_dataset.resize((day_dataset.shape[0] + days_ns.shape[0]), axis=0)
                 day_dataset[-days_ns.shape[0] :] = days_ns
 
@@ -485,7 +487,7 @@ class HDF5BarWriter:
             end_date_ixs = np.searchsorted(country_group[INDEX][DAY][:], end_dates)
 
             # We have no previous data just resize and assign the whole data
-            if len(country_group[LIFETIMES][START_DATE][:]) == 0:
+            if len(country_group[LIFETIMES][START_DATE]) == 0:
                 country_group[LIFETIMES][START_DATE].resize(len(start_date_ixs), axis=0)
                 country_group[LIFETIMES][END_DATE].resize(len(end_date_ixs), axis=0)
                 country_group[LIFETIMES][START_DATE][:] = start_date_ixs
@@ -499,25 +501,25 @@ class HDF5BarWriter:
                 end_dt_dataset = country_group[LIFETIMES][END_DATE]
 
                 ends_dt = dict(
-                    zip(sid_dataset[: len(end_dt_dataset[:])], end_dt_dataset[:])
+                    zip(sid_dataset[: len(end_dt_dataset)], end_dt_dataset[:])
                 )
 
                 # update the start_date only for new sids
-                new_sids = sid_dataset[len(start_dt_dataset[:]) :]
+                new_sids = sid_dataset[len(start_dt_dataset) :]
                 if len(new_sids):
                     n_start_date_ixs = np.array(
                         [new_starts[sid] for sid in new_sids], dtype="int64"
                     )
                     # Resize according to sids lenght
                     country_group[LIFETIMES][START_DATE].resize(
-                        len(sid_dataset[:]), axis=0
+                        len(sid_dataset), axis=0
                     )
                     country_group[LIFETIMES][START_DATE][
                         (len(new_sids)) :
                     ] = n_start_date_ixs
 
                 # Resize according to sids lenght
-                country_group[LIFETIMES][END_DATE].resize(len(sid_dataset[:]), axis=0)
+                country_group[LIFETIMES][END_DATE].resize(len(sid_dataset), axis=0)
 
                 # Ordering should be preserved
                 ends_dt.update(new_ends)
@@ -532,15 +534,31 @@ class HDF5BarWriter:
         """Write /country/currency"""
         if country_group.get(CURRENCY, None) is None:
             currency_group = country_group.create_group(CURRENCY)
+            currency_group.create_dataset(
+                CODE,
+                data=currencies.values.astype(dtype="S3"),
+                maxshape=(None,),
+            )
+            self._log_writing_dataset(currency_group)
         else:
             currency_group = country_group[CURRENCY]
-            del self.h5_rwfile[currency_group.name][CODE]
+            sid_dataset = country_group[INDEX][SID]
 
-        self._log_writing_dataset(currency_group)
-        currency_group.create_dataset(
-            CODE,
-            data=currencies.values.astype(dtype="S3"),
-        )
+            # There is no data just resize and write
+            if len(currency_group[CODE]) == 0:
+                currency_group[CODE].resize(len(currencies), axis=0)
+                currency_group[CODE][:] = currencies.values.astype(dtype="S3")
+
+            # There is a new sid and we update the currency info
+            elif len(sid_dataset) > len(currency_group[CODE]):
+                start_idx = len(currency_group[CODE])
+                new_sids = sid_dataset[start_idx:]
+                currency_group[CODE].resize(len(sid_dataset), axis=0)
+                currency_group[CODE][start_idx:] = currencies[new_sids].values.astype(
+                    dtype="S3"
+                )
+
+            self._log_writing_dataset(currency_group)
 
     def _write_trading_calendar_group(self, country_group, calendar_name):
         """Write /country/trading_calendar"""
@@ -760,9 +778,10 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
 
             n_dates = len(session_minutes)
 
-            dest_date_slice = session_minutes.astype("datetime64[ns]").searchsorted(
+            dest_date_slice = session_minutes.tz_convert(None).searchsorted(
                 self.dates[source_date_slice]
             )
+
         else:
             dest_date_slice = source_date_slice
             n_dates = source_date_slice.stop - source_date_slice.start

@@ -410,7 +410,7 @@ def _make_bundle_core():
                 # SQLiteAdjustmentWriter needs to open the daily ctables so
                 # that it can compute the adjustment ratios for the dividends.
                 daily_bar_writer.write_from_sid_df_pairs(
-                    "US", iter(()), bundle.calendar_name
+                    "US", iter(()), exchange_name=calendar.name
                 )
 
                 minutes_bars_path_h5 = Path(
@@ -422,24 +422,15 @@ def _make_bundle_core():
                     minutes_bars_path_h5, 30, data_frequency="minute"
                 )
                 minute_bar_writer.write_from_sid_df_pairs(
-                    "US", iter(()), bundle.calendar_name
+                    "US", iter(()), exchange_name=calendar.name
                 )
-                # daily_bar_writer.write_from_sid_df_pairs("US", iter(()))
 
-                # minute_bar_writer = BcolzMinuteBarWriter(
-                #     wd.ensure_dir(*minute_equity_relative(name, timestr)),
-                #     calendar,
-                #     start_session,
-                #     end_session,
-                #     minutes_per_day=bundle.minutes_per_day,
-                # )
                 assets_db_path = wd.getpath(*asset_db_relative(name, timestr))
                 asset_db_writer = AssetDBWriter(assets_db_path)
                 adjustment_db_writer = None
                 adjustment_db_writer = SQLiteAdjustmentWriter(
                     # stack.enter_context(
                     wd.getpath(*adjustment_db_relative(name, timestr)),
-                    # BcolzDailyBarReader(daily_bars_path),
                     HDF5BarReader.from_path(str(daily_bars_path_h5), "US"),
                     overwrite=True,
                 )
