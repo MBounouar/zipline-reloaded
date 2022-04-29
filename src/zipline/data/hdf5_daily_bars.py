@@ -110,7 +110,7 @@ import hdf5plugin
 import logbook
 import numpy as np
 import pandas as pd
-from functools import reduce, cached_property
+from functools import reduce, cached_property, cache
 
 from zipline.data.bar_reader import (
     NoDataAfterDate,
@@ -420,6 +420,7 @@ class HDF5BarWriter:
                 SID,
                 data=sids,
                 maxshape=(None,),
+                dtype="int64",
             )
             index_group.create_dataset(
                 DAY,
@@ -907,31 +908,27 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
         else:
             return False
 
-    @property
+    @lazyval
     def data_frequency(self):
         return self._country_group.parent.attrs["data_frequency"]
 
-    @property
+    @lazyval
     def version(self):
         return self._country_group.parent.attrs["version"]
 
-    # @lazyval
-    @property
+    @lazyval
     def dates(self):
-        return self._country_group[INDEX][DAY][:].astype("datetime64[ns]")
+        return self._country_group[INDEX][DAY][:].astype("datetime64[ns]", copy=False)
 
-    # @lazyval
-    @property
+    @lazyval
     def sids(self):
-        return self._country_group[INDEX][SID][:].astype("int64", copy=False)
+        return self._country_group[INDEX][SID][:]
 
-    # @lazyval
-    @property
+    @lazyval
     def asset_start_dates(self):
         return self.dates[self._country_group[LIFETIMES][START_DATE][:]]
 
-    # @lazyval
-    @property
+    @lazyval
     def asset_end_dates(self):
         return self.dates[self._country_group[LIFETIMES][END_DATE][:]]
 
