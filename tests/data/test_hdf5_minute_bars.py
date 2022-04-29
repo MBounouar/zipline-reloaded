@@ -111,6 +111,8 @@ class HDF5MinuteBarTestCase(
         self.writer.write_from_sid_df_pairs(
             "US", ((sid, data),), exchange_name=self.trading_calendar.name
         )
+        # Clear cache
+        self.reader.cache_clear()
 
         for field in ["open", "high", "low", "close", "volume"]:
             val = self.reader.get_value(sid, minute, field)

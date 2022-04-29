@@ -49,7 +49,7 @@ def _no_benchmark_expectations_applied(expected_perf):
     return expected_perf
 
 
-def _stored_pd_data(skip_vers=["0-18-1", "0-19-2"]):
+def _stored_pd_data(skip_vers=["0-18-1", "0-19-2", "0-22-0", "1-1-3", "1-2-3"]):
     with tarfile.open(join(TEST_RESOURCE_PATH, "example_data.tar.gz")) as tar:
         pd_versions = {
             n.split("/")[2]
@@ -152,3 +152,24 @@ class TestsExamplesTests:
             expected_perf["positions"].apply(sorted, key=itemgetter("sid")),
             actual_perf["positions"].apply(sorted, key=itemgetter("sid")),
         )
+
+    # @pytest.mark.parametrize(
+    #     "benchmark_returns", [read_checked_in_benchmark_data(), None]
+    # )
+    # @pytest.mark.parametrize("example_name", sorted(EXAMPLE_MODULES))
+    # @pytest.mark.parametrize("_df_cache", STORED_DATA_VERSIONS, indirect=True)
+    # def test_compare_stored_data(self, example_name, benchmark_returns):
+    #     if benchmark_returns is not None:
+    #         expected_perf = self.expected_perf[example_name]
+    #     else:
+    #         expected_perf = self.no_benchmark_expected_perf[example_name]
+
+    #     # Exclude positions column as the positions do not always have the
+    #     # same order
+    #     columns = [
+    #         column for column in examples._cols_to_check if column != "positions"
+    #     ]
+    #     expected_perf[columns]
+
+    #     # Sort positions by SID before comparing
+    #     expected_perf["positions"].apply(sorted, key=itemgetter("sid"))

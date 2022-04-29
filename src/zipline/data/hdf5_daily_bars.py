@@ -943,6 +943,55 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
         if calendar_name != "XXX":
             return get_calendar(calendar_name)
 
+    @lazyval
+    def last_available_dt(self):
+        """
+        Returns
+        -------
+        dt : pd.Timestamp
+            The last session for which the reader can provide data.
+        """
+        return pd.Timestamp(self.dates[-1], tz="UTC")
+
+    @lazyval
+    def trading_calendar(self):
+        """
+        Returns the zipline.utils.calendar.trading_calendar used to read
+        the data.  Can be None (if the writer didn't specify it).
+        """
+        return self._trading_calendar
+
+    @lazyval
+    def first_trading_day(self):
+        """
+        Returns
+        -------
+        dt : pd.Timestamp
+            The first trading day (session) for which the reader can provide
+            data.
+        """
+        return pd.Timestamp(self.dates[0], tz="UTC")
+
+    @lazyval
+    def sessions(self):
+        """
+        Returns
+        -------
+        sessions : DatetimeIndex
+           All session labels (unioning the range for all assets) which the
+           reader can provide.
+        """
+        return pd.to_datetime(self.dates, utc=True)
+
+    @classmethod
+    def cache_clear(cls):
+        """ "Method to clear the cache
+        After writing to an already instantiated class.
+        This sometimes needed when we running tests.
+        We normally don't have to use this in real-cases
+        """
+        [v._cache.clear() for _, v in vars(cls).items() if isinstance(v, property)]
+
     def currency_codes(self, sids):
         """Get currencies in which prices are quoted for the requested sids.
 
@@ -966,57 +1015,6 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
             .replace({np.nan: None})
             .values
         )
-
-        # result = self._currency_codes[ixs]
-
-        # searchsorted returns the index of the next lowest sid if the lookup
-        # fails. Fill these sids with the special "missing" sentinel.
-
-    #        not_found = self.sids[ixs] != sids
-
-    #        result[not_found] = None
-
-    #        return result
-
-    @property
-    def last_available_dt(self):
-        """
-        Returns
-        -------
-        dt : pd.Timestamp
-            The last session for which the reader can provide data.
-        """
-        return pd.Timestamp(self.dates[-1], tz="UTC")
-
-    @property
-    def trading_calendar(self):
-        """
-        Returns the zipline.utils.calendar.trading_calendar used to read
-        the data.  Can be None (if the writer didn't specify it).
-        """
-        return self._trading_calendar
-
-    @property
-    def first_trading_day(self):
-        """
-        Returns
-        -------
-        dt : pd.Timestamp
-            The first trading day (session) for which the reader can provide
-            data.
-        """
-        return pd.Timestamp(self.dates[0], tz="UTC")
-
-    @lazyval
-    def sessions(self):
-        """
-        Returns
-        -------
-        sessions : DatetimeIndex
-           All session labels (unioning the range for all assets) which the
-           reader can provide.
-        """
-        return pd.to_datetime(self.dates, utc=True)
 
     def get_value(self, sid, dt, field):
         """

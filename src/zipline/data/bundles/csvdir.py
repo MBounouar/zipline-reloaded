@@ -174,6 +174,7 @@ def csvdir_bundle(
         writer.write_from_sid_df_pairs(
             "US",
             _pricing_iter(ddir, symbols, metadata, divs_splits, show_progress),
+            exchange_name=calendar.name,
         )
 
         # Hardcode the exchange to "CSVDIR" for all assets and (elsewhere)
