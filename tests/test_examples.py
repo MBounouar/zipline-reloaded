@@ -109,7 +109,7 @@ def _df_cache(_setup_class, request):
     }
 
 
-@pytest.mark.usefixtures("_setup_class", "_df_cache", "_df_cache_comb")
+@pytest.mark.usefixtures("_setup_class", "_df_cache")
 class TestsExamplesTests:
 
     # some columns contain values with unique ids that will not be the same
