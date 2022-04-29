@@ -110,7 +110,7 @@ import hdf5plugin
 import logbook
 import numpy as np
 import pandas as pd
-from functools import reduce, cached_property, cache
+from functools import reduce
 
 from zipline.data.bar_reader import (
     NoDataAfterDate,
