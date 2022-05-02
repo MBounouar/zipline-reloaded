@@ -1,7 +1,7 @@
 """
 Base class for Filters, Factors and Classifiers
 """
-from abc import ABCMeta, abstractproperty, abstractmethod
+from abc import ABC, abstractproperty, abstractmethod
 from bisect import insort
 from collections.abc import Mapping
 from weakref import WeakValueDictionary
@@ -47,7 +47,7 @@ from .downsample_helpers import expect_downsample_frequency
 from .sentinels import NotSpecified
 
 
-class Term(metaclass=ABCMeta):
+class Term(ABC):
     """
     Base class for objects that can appear in the compute graph of a
     :class:`zipline.pipeline.Pipeline`.

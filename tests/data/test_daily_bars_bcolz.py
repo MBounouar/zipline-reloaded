@@ -43,7 +43,7 @@ from zipline.testing import (
 )
 from zipline.testing.predicates import (
     assert_equal,
-    assert_sequence_equal,
+    # assert_sequence_equal,
 )
 from zipline.testing.fixtures import (
     WithAssetFinder,

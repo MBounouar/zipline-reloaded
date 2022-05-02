@@ -1,4 +1,4 @@
-import abc
+from abc import ABCMeta
 from collections import namedtuple, OrderedDict
 from itertools import repeat
 from textwrap import dedent
@@ -732,7 +732,7 @@ class _DataSetFamilyColumn:
         )
 
 
-class DataSetFamilyMeta(abc.ABCMeta):
+class DataSetFamilyMeta(ABCMeta):
     def __new__(cls, name, bases, dict_):
         columns = {}
         for k, v in dict_.items():

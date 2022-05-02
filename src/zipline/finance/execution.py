@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import abc
+from abc import ABC, abstractmethod
 from sys import float_info
 from numpy import isfinite
 import zipline.utils.math_utils as zp_math
@@ -21,12 +21,12 @@ from zipline.errors import BadOrderParameters
 from zipline.utils.compat import consistent_round
 
 
-class ExecutionStyle(metaclass=abc.ABCMeta):
+class ExecutionStyle(ABC):
     """Base class for order execution styles."""
 
     _exchange = None
 
-    @abc.abstractmethod
+    @abstractmethod
     def get_limit_price(self, is_buy):
         """
         Get the limit price for this order.
@@ -34,7 +34,7 @@ class ExecutionStyle(metaclass=abc.ABCMeta):
         """
         raise NotImplementedError
 
-    @abc.abstractmethod
+    @abstractmethod
     def get_stop_price(self, is_buy):
         """
         Get the stop price for this order.
@@ -185,9 +185,9 @@ def asymmetric_round_price(price, prefer_round_down, tick_size, diff=0.95):
     If not prefer_round_down: (<X-1>.0005, X.0105] -> round to X.01.
     """
     precision = zp_math.number_of_decimal_places(tick_size)
-    multiplier = int(tick_size * (10 ** precision))
+    multiplier = int(tick_size * (10**precision))
     diff -= 0.5  # shift the difference down
-    diff *= 10 ** -precision  # adjust diff to precision of tick size
+    diff *= 10**-precision  # adjust diff to precision of tick size
     diff *= multiplier  # adjust diff to value of tick_size
 
     # Subtracting an epsilon from diff to enforce the open-ness of the upper

@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import abc
+from abc import ABC, abstractmethod
 import logbook
 from datetime import datetime
 
@@ -30,7 +30,7 @@ from zipline.utils.input_validation import (
 log = logbook.Logger("TradingControl")
 
 
-class TradingControl(metaclass=abc.ABCMeta):
+class TradingControl(ABC):
     """
     Abstract base class representing a fail-safe control on the behavior of any
     algorithm.
@@ -44,7 +44,7 @@ class TradingControl(metaclass=abc.ABCMeta):
         self.on_error = on_error
         self.__fail_args = kwargs
 
-    @abc.abstractmethod
+    @abstractmethod
     def validate(self, asset, amount, portfolio, algo_datetime, algo_current_data):
         """
         Before any order is executed by TradingAlgorithm, this method should be
@@ -299,7 +299,7 @@ class AssetDateBounds(TradingControl):
                 self.handle_violation(asset, amount, algo_datetime, metadata=metadata)
 
 
-class AccountControl(metaclass=abc.ABCMeta):
+class AccountControl(ABC):
     """
     Abstract base class representing a fail-safe control on the behavior of any
     algorithm.
@@ -312,7 +312,7 @@ class AccountControl(metaclass=abc.ABCMeta):
         """
         self.__fail_args = kwargs
 
-    @abc.abstractmethod
+    @abstractmethod
     def validate(self, _portfolio, _account, _algo_datetime, _algo_current_data):
         """
         On each call to handle data by TradingAlgorithm, this method should be

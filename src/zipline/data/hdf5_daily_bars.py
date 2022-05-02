@@ -242,8 +242,10 @@ class HDF5BarWriter:
     def __init__(self, filename, date_chunk_size, data_frequency="daily"):
         self._filename = filename
         self._date_chunk_size = date_chunk_size
-        if data_frequency.lower() not in ["minute", "daily"]:
-            raise ValueError(f"{data_frequency} is not valid only: 'daily' or 'minute'")
+        if data_frequency.lower() not in ["minute", "daily", "session"]:
+            raise ValueError(
+                f"{data_frequency} is not valid only: 'daily', 'session' or 'minute'"
+            )
         self._data_frequency = data_frequency
 
     def h5_file(self, mode):
@@ -987,8 +989,8 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
     def cache_clear(cls):
         """ "Method to clear the cache
         After writing to an already instantiated class.
-        This sometimes needed when we running tests.
-        We normally don't have to use this in real-cases
+        This is sometimes needed when we are running tests and writing new data.
+        We normally don't have to use this in real-cases where data is not continuously written and read
         """
         [v._cache.clear() for _, v in vars(cls).items() if isinstance(v, property)]
 

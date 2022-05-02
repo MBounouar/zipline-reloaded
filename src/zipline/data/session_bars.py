@@ -17,9 +17,7 @@ from zipline.data.bar_reader import BarReader
 
 
 class SessionBarReader(BarReader):
-    """
-    Reader for OHCLV pricing data at a session frequency.
-    """
+    """Reader for data at a session frequency."""
 
     @property
     def data_frequency(self):
