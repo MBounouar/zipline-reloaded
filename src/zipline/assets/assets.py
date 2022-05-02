@@ -1370,7 +1370,7 @@ class AssetFinder:
             iterator = iter(obj)
         except TypeError:
             raise NotAssetConvertible(
-                "Input was not a AssetConvertible " "or iterable of AssetConvertible."
+                "Input was not a AssetConvertible or iterable of AssetConvertible."
             )
 
         for obj in iterator:
@@ -1384,13 +1384,17 @@ class AssetFinder:
 
         return matches, missing
 
-    def _compute_asset_lifetimes(self, country_codes):
-        """
-        Compute and cache a recarray of asset lifetimes.
-        """
+    def _compute_asset_lifetimes(self, **kwargs):
+        """Compute and cache a recarray of asset lifetimes"""
         sids = starts = ends = []
         equities_cols = self.equities.c
-        if country_codes:
+        exchanges_cols = self.exchanges.c
+        if len(kwargs) == 1:
+            if "country_codes" in kwargs.keys():
+                condt = exchanges_cols.country_code.in_(kwargs["country_codes"])
+            if "exchange_names" in kwargs.keys():
+                condt = exchanges_cols.exchange.in_(kwargs["exchange_names"])
+
             results = (
                 sa.select(
                     (
@@ -1399,10 +1403,7 @@ class AssetFinder:
                         equities_cols.end_date,
                     )
                 )
-                .where(
-                    (self.exchanges.c.exchange == equities_cols.exchange)
-                    & (self.exchanges.c.country_code.in_(country_codes))
-                )
+                .where((exchanges_cols.exchange == equities_cols.exchange) & (condt))
                 .execute()
                 .fetchall()
             )
@@ -1463,7 +1464,7 @@ class AssetFinder:
         if lifetimes is None:
             self._asset_lifetimes[
                 country_codes
-            ] = lifetimes = self._compute_asset_lifetimes(country_codes)
+            ] = lifetimes = self._compute_asset_lifetimes(country_codes=country_codes)
 
         raw_dates = as_column(dates.asi8)
         if include_start_date:
@@ -1487,7 +1488,22 @@ class AssetFinder:
         tuple[int]
             The sids whose exchanges are in this country.
         """
-        sids = self._compute_asset_lifetimes([country_code]).sid
+        sids = self._compute_asset_lifetimes(country_codes=[country_code]).sid
+        return tuple(sids.tolist())
+
+    def equities_sids_for_exchange_name(self, exchange_name):
+        """Return all of the sids for a given exchange_name.
+
+        Parameters
+        ----------
+        exchange_name : str
+
+        Returns
+        -------
+        tuple[int]
+            The sids whose exchanges are in this country.
+        """
+        sids = self._compute_asset_lifetimes(exchange_names=[exchange_name]).sid
         return tuple(sids.tolist())
 
 
