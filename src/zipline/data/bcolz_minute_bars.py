@@ -13,9 +13,8 @@
 # limitations under the License.
 # from pathlib import Path
 import json
-from pathlib import Path
 import os
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from glob import glob
 from textwrap import dedent
 
@@ -1263,10 +1262,8 @@ class BcolzMinuteBarReader(MinuteBarReader):
         return results
 
 
-class MinuteBarUpdateReader(metaclass=ABCMeta):
-    """
-    Abstract base class for minute update readers.
-    """
+class MinuteBarUpdateReader(ABC):
+    """Abstract base class for minute update readers."""
 
     @abstractmethod
     def read(self, dts, sids):

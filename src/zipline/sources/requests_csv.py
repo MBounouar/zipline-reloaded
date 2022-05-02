@@ -1,4 +1,4 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABC, abstractmethod
 from collections import namedtuple
 import hashlib
 from textwrap import dedent
@@ -131,7 +131,7 @@ def mask_requests_args(url, validating=False, params_checker=None, **kwargs):
     return request_pair(requests_kwargs, url)
 
 
-class PandasCSV(metaclass=ABCMeta):
+class PandasCSV(ABC):
     def __init__(
         self,
         pre_func,

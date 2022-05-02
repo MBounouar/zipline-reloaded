@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from abc import ABCMeta, abstractmethod, abstractproperty
+from abc import ABC, abstractmethod, abstractproperty
 
 import pandas as pd
 import numpy as np
@@ -255,7 +255,7 @@ class SlidingWindow:
         return self.current
 
 
-class HistoryLoader(metaclass=ABCMeta):
+class HistoryLoader(ABC):
     """
     Loader for sliding history windows, with support for adjustments.
 

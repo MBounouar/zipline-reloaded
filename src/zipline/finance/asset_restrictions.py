@@ -1,4 +1,4 @@
-import abc
+from abc import ABC, abstractmethod
 import operator
 from collections import namedtuple
 from enum import IntEnum
@@ -22,13 +22,13 @@ RESTRICTION_STATES = IntEnum(
 )
 
 
-class Restrictions(metaclass=abc.ABCMeta):
+class Restrictions(ABC):
     """
     Abstract restricted list interface, representing a set of assets that an
     algorithm is restricted from trading.
     """
 
-    @abc.abstractmethod
+    @abstractmethod
     def is_restricted(self, assets, dt):
         """
         Is the asset restricted (RestrictionStates.FROZEN) on the given dt?

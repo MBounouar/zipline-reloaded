@@ -12,14 +12,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import abc
-
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 
 from zipline.gens.sim_engine import SESSION_END
 
 
-class CancelPolicy(metaclass=abc.ABCMeta):
+class CancelPolicy(ABC):
     """Abstract cancellation policy interface."""
 
     @abstractmethod
