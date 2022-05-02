@@ -25,15 +25,15 @@ from zipline.utils.calendar_utils import get_calendar
 from zipline.data.bar_reader import (
     NoDataAfterDate,
     NoDataBeforeDate,
-    NoDataOnDate,
+    # NoDataOnDate,
 )
 from zipline.data.bcolz_daily_bars import BcolzDailyBarWriter
 from zipline.data.hdf5_daily_bars import (
     CLOSE,
-    DEFAULT_SCALING_FACTORS,
-    HIGH,
-    LOW,
-    OPEN,
+    # DEFAULT_SCALING_FACTORS,
+    # HIGH,
+    # LOW,
+    # OPEN,
     VOLUME,
     coerce_to_uint32,
 )

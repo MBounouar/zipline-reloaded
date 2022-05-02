@@ -24,7 +24,6 @@ from zipline.data.bar_reader import (
     NoDataBeforeDate,
     NoDataOnDate,
 )
-from zipline.data.bcolz_daily_bars import BcolzDailyBarWriter
 from zipline.data.hdf5_daily_bars import (
     CLOSE,
     DEFAULT_SCALING_FACTORS,

@@ -14,7 +14,6 @@
 # limitations under the License.
 from pathlib import Path
 from datetime import timedelta
-from unittest import skip
 
 import numpy as np
 import pandas as pd
@@ -29,13 +28,7 @@ from zipline.data.hdf5_daily_bars import (
 )
 from zipline.data.bcolz_minute_bars import (
     US_EQUITIES_MINUTES_PER_DAY,
-    BcolzMinuteBarMetadata,
-    # BcolzMinuteBarReader,
-    # BcolzMinuteBarWriter,
-    BcolzMinuteOverlappingData,
-    BcolzMinuteWriterColumnMismatch,
-    H5MinuteBarUpdateReader,
-    H5MinuteBarUpdateWriter,
+    # BcolzMinuteWriterColumnMismatch,
 )
 from zipline.testing.fixtures import (
     WithAssetFinder,
@@ -649,23 +642,23 @@ class HDF5MinuteBarTestCase(
         volume_price = self.reader.get_value(sid, minute_1, "volume")
         assert 51.0 == volume_price
 
-    @pytest.mark.skip
-    def test_write_cols_mismatch_length(self):
-        dts = pd.date_range(
-            self.market_opens[self.test_calendar_start].tz_localize(None),
-            periods=2,
-            freq="min",
-        ).asi8.astype("datetime64[s]")
-        sid = 1
-        cols = {
-            "open": np.array([10.0, 11.0, 12.0]),
-            "high": np.array([20.0, 21.0]),
-            "low": np.array([30.0, 31.0, 33.0, 34.0]),
-            "close": np.array([40.0, 41.0]),
-            "volume": np.array([50.0, 51.0, 52.0]),
-        }
-        with pytest.raises(BcolzMinuteWriterColumnMismatch):
-            self.writer.write_cols(sid, dts, cols)
+    # @pytest.mark.skip
+    # def test_write_cols_mismatch_length(self):
+    #     dts = pd.date_range(
+    #         self.market_opens[self.test_calendar_start].tz_localize(None),
+    #         periods=2,
+    #         freq="min",
+    #     ).asi8.astype("datetime64[s]")
+    #     sid = 1
+    #     cols = {
+    #         "open": np.array([10.0, 11.0, 12.0]),
+    #         "high": np.array([20.0, 21.0]),
+    #         "low": np.array([30.0, 31.0, 33.0, 34.0]),
+    #         "close": np.array([40.0, 41.0]),
+    #         "volume": np.array([50.0, 51.0, 52.0]),
+    #     }
+    #     with pytest.raises(BcolzMinuteWriterColumnMismatch):
+    #         self.writer.write_cols(sid, dts, cols)
 
     def test_unadjusted_minutes(self):
         """Test unadjusted minutes"""
