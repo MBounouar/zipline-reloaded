@@ -75,6 +75,11 @@ from zipline.testing.predicates import assert_frame_equal, assert_index_equal
 CASE = namedtuple("CASE", "finder inputs as_of country_code expected")
 MINUTE = pd.Timedelta(minutes=1)
 
+if sys.platform == "win32":
+    SQLDB_TYPE_PARAMS = ["sqlite"]
+else:
+    SQLDB_TYPE_PARAMS = ["sqlite", "postgresql"]
+
 
 def build_lookup_generic_cases():
     """
@@ -2026,7 +2031,7 @@ class TestAssetFinderMultipleCountries:
             assert result.sid == n * 2 + 1
 
 
-@pytest.fixture(scope="function", params=["sqlite", "postgresql"])
+@pytest.fixture(scope="function", params=SQLDB_TYPE_PARAMS)
 def sql_db(request, postgresql):
     if request.param == "sqlite":
         connection = "sqlite:///:memory:"
