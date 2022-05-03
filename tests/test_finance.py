@@ -280,12 +280,13 @@ class TestFinance:
                 path = Path(tempdir.path) / "testdata.h5"
                 #### TODO : CLEANUP AND FINISH
                 HDF5BarWriter(path, 30).write_from_sid_df_pairs(
-                    "US",
+                    self.trading_calendar.name,
                     assets.items(),
-                    exchange_name=self.trading_calendar.name,
                 )
 
-                equity_daily_reader = HDF5BarReader.from_path(path, "US")
+                equity_daily_reader = HDF5BarReader.from_path(
+                    path, self.trading_calendar.name
+                )
 
                 data_portal = DataPortal(
                     self.asset_finder,

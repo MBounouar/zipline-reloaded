@@ -201,9 +201,8 @@ def quandl_bundle(
     #     # show_progress=show_progress,
     # )
     daily_bar_writer.write_from_sid_df_pairs(
-        "US",
+        calendar.name,
         parse_pricing_and_vol(raw_data, sessions, symbol_map),
-        exchange_name=calendar.name,
     )
 
     raw_data.reset_index(inplace=True)

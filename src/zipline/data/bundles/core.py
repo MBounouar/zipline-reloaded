@@ -410,7 +410,8 @@ def _make_bundle_core():
                 # SQLiteAdjustmentWriter needs to open the daily ctables so
                 # that it can compute the adjustment ratios for the dividends.
                 daily_bar_writer.write_from_sid_df_pairs(
-                    "US", iter(()), exchange_name=calendar.name
+                    calendar.name,
+                    iter(()),
                 )
 
                 minutes_bars_path_h5 = Path(
@@ -422,7 +423,8 @@ def _make_bundle_core():
                     minutes_bars_path_h5, 30, data_frequency="minute"
                 )
                 minute_bar_writer.write_from_sid_df_pairs(
-                    "US", iter(()), exchange_name=calendar.name
+                    calendar.name,
+                    iter(()),
                 )
 
                 assets_db_path = wd.getpath(*asset_db_relative(name, timestr))
@@ -431,7 +433,7 @@ def _make_bundle_core():
                 adjustment_db_writer = SQLiteAdjustmentWriter(
                     # stack.enter_context(
                     wd.getpath(*adjustment_db_relative(name, timestr)),
-                    HDF5BarReader.from_path(str(daily_bars_path_h5), "US"),
+                    HDF5BarReader.from_path(str(daily_bars_path_h5), calendar.name),
                     overwrite=True,
                 )
                 # )
@@ -544,13 +546,15 @@ def _make_bundle_core():
             #     minute_equity_path(name, timestr, environ=environ),
             # ),
             equity_minute_bar_reader=HDF5BarReader.from_path(
-                str(minute_equity_path(name, timestr, environ=environ, h5=True)), "US"
+                str(minute_equity_path(name, timestr, environ=environ, h5=True)),
+                "XNYS",
             ),
             # equity_daily_bar_reader=BcolzDailyBarReader(
             #     daily_equity_path(name, timestr, environ=environ),
             # ),
             equity_daily_bar_reader=HDF5BarReader.from_path(
-                str(daily_equity_path(name, timestr, environ=environ, h5=True)), "US"
+                str(daily_equity_path(name, timestr, environ=environ, h5=True)),
+                "XNYS",
             ),
             adjustment_reader=SQLiteAdjustmentReader(
                 adjustment_db_path(name, timestr, environ=environ),

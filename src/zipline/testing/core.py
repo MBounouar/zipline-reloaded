@@ -1740,9 +1740,10 @@ def write_hdf5_daily_bars(
     """Write an HDF5 file of pricing data using an HDF5DailyBarWriter."""
 
     asset_finder = asset_finder
-    for country_code in country_codes:
+    for country_code, exchange_name in exchange_names.items():
+        # for country_code in country_codes:
         sids = asset_finder.equities_sids_for_country_code(country_code)
-
+        # TODO: CHECK AND FIX THE COMMENT BELOW
         # XXX: The contract for generate_data is that it should return an
         # iterator of (sid, df) pairs with entry for each sid in `sids`, and
         # the contract for `generate_currency_codes` is that it should return a
@@ -1769,10 +1770,9 @@ def write_hdf5_daily_bars(
             sids=data_sids,
         )
         writer.write_from_sid_df_pairs(
-            country_code=country_code,
+            exchange_code=get_calendar(exchange_name).name,
             data=iter(data),
             currency_codes=currency_codes,
-            exchange_name=exchange_names[country_code],
         )
 
 

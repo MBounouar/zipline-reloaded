@@ -624,7 +624,7 @@ class BcolzDailyBarTestCase(WithBcolzEquityDailyBarReader, _DailyBarsTestCase):
         invalid_sids = [-1, -2]
 
         # XXX: We currently require at least one valid sid here, because the
-        # MultiCountryDailyBarReader needs one valid sid to be able to dispatch
+        # MultiExchangeDailyBarReader needs one valid sid to be able to dispatch
         # to a child reader. We could probably make that work, but there are no
         # real-world cases where we expect to get all-invalid currency queries,
         # so it's unclear whether we should do work to explicitly support such

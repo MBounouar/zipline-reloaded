@@ -1,10 +1,9 @@
 """
 HDF5 Pricing File Format
 ------------------------
-At the top level, the file is keyed by country (to support regional
-files containing multiple countries).
+At the top level, the file is keyed by exchange (to support files containing multiple exchanges).
 
-Within each country, there are 4 subgroups:
+Within each exchange, there are 4 subgroups:
 
 ``/data``
 ^^^^^^^^^
@@ -58,7 +57,7 @@ Sample layout of the full file with multiple countries.
 
 .. code-block:: none
 
-   |- /US
+   |- /XNYS
    |  |- /data
    |  |  |- /open
    |  |  |- /high
@@ -77,10 +76,8 @@ Sample layout of the full file with multiple countries.
    |  |- /currency
    |  |  |- /code
    |  |
-   |  |- /trading_calendar
-   |  |  |- /exchange_name
    |  |
-   |- /CA
+   |- /XTSE
       |- /data
       |  |- /open
       |  |- /high
@@ -97,10 +94,8 @@ Sample layout of the full file with multiple countries.
       |  |- /end_date
       |
       |- /currency
-   |  |  |- /code
-   |  |
-   |  |- /trading_calendar
-   |  |  |- /exchange_name
+      |  |- /code
+      |
 """
 
 from functools import partial
@@ -123,7 +118,7 @@ from zipline.data.session_bars import CurrencyAwareSessionBarReader
 from zipline.utils.memoize import lazyval
 from zipline.utils.numpy_utils import bytes_array_to_native_str_object_array
 from zipline.utils.pandas_utils import check_indexes_all_same
-from zipline.utils.calendar_utils import get_calendar
+from zipline.utils.calendar_utils import get_calendar, get_calendar_names
 
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
 log = logbook.Logger("HDF5DailyBars")
@@ -135,7 +130,6 @@ INDEX = "index"
 LIFETIMES = "lifetimes"
 CURRENCY = "currency"
 CODE = "code"
-TRADING_CALENDAR = "trading_calendar"
 
 SCALING_FACTOR = "scaling_factor"
 
@@ -239,7 +233,7 @@ class HDF5BarWriter:
     zipline.data.hdf5_daily_bars.HDF5DailyBarReader
     """
 
-    def __init__(self, filename, date_chunk_size, data_frequency="daily"):
+    def __init__(self, filename, date_chunk_size, data_frequency="session"):
         self._filename = filename
         self._date_chunk_size = date_chunk_size
         if data_frequency.lower() not in ["minute", "daily", "session"]:
@@ -255,7 +249,7 @@ class HDF5BarWriter:
         if self._data_frequency == "minute":
             is_valid = np.vectorize(self.trading_calendar.is_open_on_minute)
             valid_ts = is_valid(days)
-        elif self._data_frequency == "daily":
+        elif self._data_frequency in ["session", "daily"]:
             is_valid = np.vectorize(self.trading_calendar.is_session)
             valid_ts = is_valid(np.vectorize(partial(pd.Timestamp, tz="UTC"))(days))
 
@@ -264,9 +258,8 @@ class HDF5BarWriter:
 
     def write(
         self,
-        country_code,
+        exchange_code,
         frames,
-        exchange_name=None,
         currency_codes=None,
         scaling_factors=None,
     ):
@@ -301,13 +294,14 @@ class HDF5BarWriter:
         # share the same days and sids.
         days_ns, sids = days_and_sids_for_frames(list(frames.values()))
 
-        if exchange_name is not None:
-            self.trading_calendar = get_calendar(exchange_name)
-            if days_ns.size != 0:
-                self._check_valid_calendar_days(days_ns)
+        # Check valid exchange_code
+        if exchange_code not in get_calendar_names():
+            raise ValueError(f"{exchange_code} not a valid exchange code")
 
-        else:
-            raise ValueError("Missing exchange_name")
+        self.trading_calendar = get_calendar(exchange_code)
+        # check if days are valid calendar days
+        if days_ns.size != 0:
+            self._check_valid_calendar_days(days_ns)
 
         # XXX: We should make this required once we're using it everywhere.
         if currency_codes is None:
@@ -336,17 +330,16 @@ class HDF5BarWriter:
             self.h5_rwfile.attrs["version"] = VERSION
             self.h5_rwfile.attrs["data_frequency"] = self._data_frequency
 
-            country_group = self.h5_rwfile.get(country_code, None)
-            if country_group is None:
-                country_group = self.h5_rwfile.create_group(country_code)
+            exchange_group = self.h5_rwfile.get(exchange_code, None)
+            if exchange_group is None:
+                exchange_group = self.h5_rwfile.create_group(exchange_code)
 
-            self._write_index_group(country_group, days_ns, sids)
+            self._write_index_group(exchange_group, days_ns, sids)
 
-            self._write_lifetimes_group(country_group, sids, start_dates, end_dates)
-            self._write_currency_group(country_group, currency_codes)
-            self._write_trading_calendar_group(country_group, exchange_name)
+            self._write_lifetimes_group(exchange_group, sids, start_dates, end_dates)
+            self._write_currency_group(exchange_group, currency_codes)
             self._write_data_group(
-                country_group,
+                exchange_group,
                 frames,
                 scaling_factors,
                 chunks,
@@ -354,17 +347,16 @@ class HDF5BarWriter:
 
     def write_from_sid_df_pairs(
         self,
-        country_code,
+        exchange_code,
         data,
         currency_codes=None,
-        exchange_name=None,
         scaling_factors=None,
     ):
         """
         Parameters
         ----------
-        country_code : str
-            The ISO 3166 alpha-2 country code for this country.
+        exchange_code : str
+            The ISO-10383 market exchange code.
         data : iterable[tuple[int, pandas.DataFrame]]
             The data chunks to write. Each chunk should be a tuple of
             sid and the data for that asset.
@@ -389,10 +381,9 @@ class HDF5BarWriter:
                 columns=np.array([], dtype="int64"),
             )
             return self.write(
-                country_code=country_code,
+                exchange_code=exchange_code,
                 frames={f: empty_frame.copy() for f in FIELDS},
                 scaling_factors=scaling_factors,
-                exchange_name=exchange_name,
             )
 
         self._sids, frames = zip(*data)
@@ -407,17 +398,16 @@ class HDF5BarWriter:
         frames = {field: ohlcv_frame[field].unstack() for field in FIELDS}
 
         return self.write(
-            country_code=country_code,
+            exchange_code=exchange_code,
             frames=frames,
             scaling_factors=scaling_factors,
             currency_codes=currency_codes,
-            exchange_name=exchange_name,
         )
 
-    def _write_index_group(self, country_group, days_ns, sids):
+    def _write_index_group(self, exchange_group, days_ns, sids):
         """Write /country/index."""
-        if country_group.get(INDEX, None) is None:
-            index_group = country_group.create_group(INDEX)
+        if exchange_group.get(INDEX, None) is None:
+            index_group = exchange_group.create_group(INDEX)
             index_group.create_dataset(
                 SID,
                 data=sids,
@@ -431,9 +421,9 @@ class HDF5BarWriter:
             )
             self._log_writing_dataset(index_group)
         else:
-            sid_dataset = country_group[INDEX][SID]
+            sid_dataset = exchange_group[INDEX][SID]
             new_sids = np.setdiff1d(sids, sid_dataset[:])
-            day_dataset = country_group[INDEX][DAY]
+            day_dataset = exchange_group[INDEX][DAY]
 
             # Check that we don't allow for overwriting sid data
             if np.any(np.isin(sids, sid_dataset[:])) and np.any(
@@ -458,20 +448,20 @@ class HDF5BarWriter:
         # h5py does not support datetimes, so they need to be stored
         # as integers.
 
-    def _write_lifetimes_group(self, country_group, sids, start_dates, end_dates):
+    def _write_lifetimes_group(self, exchange_group, sids, start_dates, end_dates):
         """Write /country/lifetimes"""
-        if country_group.get(LIFETIMES, None) is None:
-            lifetimes_group = country_group.create_group(LIFETIMES)
+        if exchange_group.get(LIFETIMES, None) is None:
+            lifetimes_group = exchange_group.create_group(LIFETIMES)
 
             if len(start_dates) == 0:
                 start_date_ixs = end_date_ixs = np.array([], dtype="int64")
             else:
                 start_date_ixs = np.searchsorted(
-                    country_group[INDEX][DAY][:],
+                    exchange_group[INDEX][DAY][:],
                     start_dates,
                 )
                 end_date_ixs = np.searchsorted(
-                    country_group[INDEX][DAY][:],
+                    exchange_group[INDEX][DAY][:],
                     end_dates,
                 )
 
@@ -487,22 +477,24 @@ class HDF5BarWriter:
             )
         else:
             # Do we have new sids or old sids or a mix ?
-            start_date_ixs = np.searchsorted(country_group[INDEX][DAY][:], start_dates)
-            end_date_ixs = np.searchsorted(country_group[INDEX][DAY][:], end_dates)
+            start_date_ixs = np.searchsorted(exchange_group[INDEX][DAY][:], start_dates)
+            end_date_ixs = np.searchsorted(exchange_group[INDEX][DAY][:], end_dates)
 
             # We have no previous data just resize and assign the whole data
-            if len(country_group[LIFETIMES][START_DATE]) == 0:
-                country_group[LIFETIMES][START_DATE].resize(len(start_date_ixs), axis=0)
-                country_group[LIFETIMES][END_DATE].resize(len(end_date_ixs), axis=0)
-                country_group[LIFETIMES][START_DATE][:] = start_date_ixs
-                country_group[LIFETIMES][END_DATE][:] = end_date_ixs
+            if len(exchange_group[LIFETIMES][START_DATE]) == 0:
+                exchange_group[LIFETIMES][START_DATE].resize(
+                    len(start_date_ixs), axis=0
+                )
+                exchange_group[LIFETIMES][END_DATE].resize(len(end_date_ixs), axis=0)
+                exchange_group[LIFETIMES][START_DATE][:] = start_date_ixs
+                exchange_group[LIFETIMES][END_DATE][:] = end_date_ixs
             else:
                 new_starts = dict(zip(sids, start_date_ixs))
                 new_ends = dict(zip(sids, end_date_ixs))
 
-                sid_dataset = country_group[INDEX][SID]
-                start_dt_dataset = country_group[LIFETIMES][START_DATE]
-                end_dt_dataset = country_group[LIFETIMES][END_DATE]
+                sid_dataset = exchange_group[INDEX][SID]
+                start_dt_dataset = exchange_group[LIFETIMES][START_DATE]
+                end_dt_dataset = exchange_group[LIFETIMES][END_DATE]
 
                 ends_dt = dict(
                     zip(sid_dataset[: len(end_dt_dataset)], end_dt_dataset[:])
@@ -515,29 +507,29 @@ class HDF5BarWriter:
                         [new_starts[sid] for sid in new_sids], dtype="int64"
                     )
                     # Resize according to sids lenght
-                    country_group[LIFETIMES][START_DATE].resize(
+                    exchange_group[LIFETIMES][START_DATE].resize(
                         len(sid_dataset), axis=0
                     )
-                    country_group[LIFETIMES][START_DATE][
+                    exchange_group[LIFETIMES][START_DATE][
                         (len(new_sids)) :
                     ] = n_start_date_ixs
 
                 # Resize according to sids lenght
-                country_group[LIFETIMES][END_DATE].resize(len(sid_dataset), axis=0)
+                exchange_group[LIFETIMES][END_DATE].resize(len(sid_dataset), axis=0)
 
                 # Ordering should be preserved
                 ends_dt.update(new_ends)
 
-                country_group[LIFETIMES][END_DATE][:] = np.array(
+                exchange_group[LIFETIMES][END_DATE][:] = np.array(
                     list(ends_dt), dtype="int64"
                 )
 
-        self._log_writing_dataset(country_group[LIFETIMES])
+        self._log_writing_dataset(exchange_group[LIFETIMES])
 
-    def _write_currency_group(self, country_group, currencies):
+    def _write_currency_group(self, exchange_group, currencies):
         """Write /country/currency"""
-        if country_group.get(CURRENCY, None) is None:
-            currency_group = country_group.create_group(CURRENCY)
+        if exchange_group.get(CURRENCY, None) is None:
+            currency_group = exchange_group.create_group(CURRENCY)
             currency_group.create_dataset(
                 CODE,
                 data=currencies.values.astype(dtype="S3"),
@@ -545,8 +537,8 @@ class HDF5BarWriter:
             )
             self._log_writing_dataset(currency_group)
         else:
-            currency_group = country_group[CURRENCY]
-            sid_dataset = country_group[INDEX][SID]
+            currency_group = exchange_group[CURRENCY]
+            sid_dataset = exchange_group[INDEX][SID]
 
             # There is no data just resize and write
             if len(currency_group[CODE]) == 0:
@@ -564,22 +556,12 @@ class HDF5BarWriter:
 
             self._log_writing_dataset(currency_group)
 
-    def _write_trading_calendar_group(self, country_group, calendar_name):
-        """Write /country/trading_calendar"""
-        if country_group.get(TRADING_CALENDAR, None) is None:
-            trading_calendar_group = country_group.create_group(TRADING_CALENDAR)
-            trading_calendar_group.create_group(calendar_name)
-        else:
-            trading_calendar_group = country_group[TRADING_CALENDAR]
-
-        self._log_writing_dataset(trading_calendar_group)
-
-    def _write_data_group(self, country_group, frames, scaling_factors, chunks):
+    def _write_data_group(self, exchange_group, frames, scaling_factors, chunks):
         """Write /country/data"""
-        if country_group.get(DATA) is None:
-            data_group = country_group.create_group(DATA)
+        if exchange_group.get(DATA) is None:
+            data_group = exchange_group.create_group(DATA)
         else:
-            data_group = country_group[DATA]
+            data_group = exchange_group[DATA]
 
         self._log_writing_dataset(data_group)
 
@@ -615,11 +597,11 @@ class HDF5BarWriter:
                     data_group[field].resize(data.shape)
                     data_group[field][:] = data
                 else:
-                    nsids = len(country_group[INDEX][SID])
-                    ndays = len(country_group[INDEX][DAY])
+                    nsids = len(exchange_group[INDEX][SID])
+                    ndays = len(exchange_group[INDEX][DAY])
                     data_group[field].resize((nsids, ndays))
                     # find which sids need to be inserted and where
-                    sid_idx = country_group[INDEX][SID][:].searchsorted(
+                    sid_idx = exchange_group[INDEX][SID][:].searchsorted(
                         self._sids, "left"
                     )
                     data_group[field][sid_idx, -data.shape[1] :] = data
@@ -678,12 +660,12 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
     """
     Parameters
     ---------
-    country_group : h5py.Group
+    exchange_group : h5py.Group
         The group for a single country in an HDF5 daily pricing file.
     """
 
-    def __init__(self, country_group):
-        self._country_group = country_group
+    def __init__(self, exchange_group):
+        self._exchange_group = exchange_group
 
         self._postprocessors = {
             OPEN: partial(
@@ -711,7 +693,7 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
         }
 
     @classmethod
-    def from_file(cls, h5_file, country_code):
+    def from_file(cls, h5_file, exchange_code):
         """
         Construct from an h5py.File and a country code.
 
@@ -727,10 +709,10 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
                 f"mismatched version: file is of version {h5_file.attrs['version']},"
                 f" expected {VERSION}"
             )
-        return cls(h5_file[country_code])
+        return cls(h5_file[exchange_code])
 
     @classmethod
-    def from_path(cls, path, country_code):
+    def from_path(cls, path, exchange_code):
         """
         Construct from a file path and a country code.
 
@@ -741,10 +723,10 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
         country_code : str
             The ISO 3166 alpha-2 country code for the country to read.
         """
-        return cls.from_file(h5py.File(path, "a"), country_code)
+        return cls.from_file(h5py.File(path, "a"), exchange_code)
 
     def _read_scaling_factor(self, field):
-        return self._country_group[DATA][field].attrs[SCALING_FACTOR]
+        return self._exchange_group[DATA][field].attrs[SCALING_FACTOR]
 
     def load_raw_arrays(self, columns, start_date, end_date, assets):
         """
@@ -811,7 +793,7 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
         for column in columns:
             # Zero the buffer to prepare to receive new data.
             mutable_buf.fill(0)
-            dataset = self._country_group[DATA][column]
+            dataset = self._exchange_group[DATA][column]
 
             # Fill the mutable portion of our buffer with data from the file.
             if self.data_frequency == "minute":
@@ -889,17 +871,16 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
 
     def _validate_timestamp(self, ts):
         # TODO enforce trading calendar
-        # For the moment silently checks fore session
         if self.trading_calendar is not None:
             if self.data_frequency == "minute":
                 if not self.trading_calendar.is_open_on_minute(ts):
                     raise NoDataOnDate(ts)
-            elif self.data_frequency == "daily":
+            elif self.data_frequency in ["daily", "session"]:
                 if not self.trading_calendar.is_session(ts):
                     raise NoDataOnDate(ts)
         if ts.asm8 < self.dates[0]:
             raise NoDataBeforeDate(f"requested: {ts} earliest date is: {self.dates[0]}")
-        if ts.asm8 > self.dates[-1] and self.data_frequency == "daily":
+        if ts.asm8 > self.dates[-1] and self.data_frequency in ["daily", "session"]:
             raise NoDataAfterDate(f"requested: {ts} latest date is: {self.dates[-1]}")
 
         # if ts.asm8 > self.dates[-1]:
@@ -912,38 +893,36 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
 
     @lazyval
     def data_frequency(self):
-        return self._country_group.parent.attrs["data_frequency"]
+        return self._exchange_group.parent.attrs["data_frequency"]
 
     @lazyval
     def version(self):
-        return self._country_group.parent.attrs["version"]
+        return self._exchange_group.parent.attrs["version"]
 
     @lazyval
     def dates(self):
-        return self._country_group[INDEX][DAY][:].astype("datetime64[ns]", copy=False)
+        return self._exchange_group[INDEX][DAY][:].astype("datetime64[ns]", copy=False)
 
     @lazyval
     def sids(self):
-        return self._country_group[INDEX][SID][:]
+        return self._exchange_group[INDEX][SID][:]
 
     @lazyval
     def asset_start_dates(self):
-        return self.dates[self._country_group[LIFETIMES][START_DATE][:]]
+        return self.dates[self._exchange_group[LIFETIMES][START_DATE][:]]
 
     @lazyval
     def asset_end_dates(self):
-        return self.dates[self._country_group[LIFETIMES][END_DATE][:]]
+        return self.dates[self._exchange_group[LIFETIMES][END_DATE][:]]
 
     @lazyval
     def _currency_codes(self):
-        bytes_array = self._country_group[CURRENCY][CODE][:]
+        bytes_array = self._exchange_group[CURRENCY][CODE][:]
         return bytes_array_to_native_str_object_array(bytes_array)
 
     @lazyval
     def _trading_calendar(self):
-        calendar_name = list(self._country_group[TRADING_CALENDAR])[0]
-        if calendar_name != "XXX":
-            return get_calendar(calendar_name)
+        return get_calendar(self._exchange_group.name[1:])
 
     @lazyval
     def last_available_dt(self):
@@ -1056,7 +1035,7 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
             value = np.nan
         else:
             value = self._postprocessors[field](
-                self._country_group[DATA][field][sid_ix, dt_ix]
+                self._exchange_group[DATA][field][sid_ix, dt_ix]
             )
 
         # When the value is nan, this dt may be outside the asset's lifetime.
@@ -1097,7 +1076,7 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
 
         # Get the indices of all dates with nonzero volume.
         nonzero_volume_ixs = np.ravel(
-            np.nonzero(self._country_group[DATA][VOLUME][sid_ix, :dt_limit_ix])
+            np.nonzero(self._exchange_group[DATA][VOLUME][sid_ix, :dt_limit_ix])
         )
 
         if len(nonzero_volume_ixs) == 0:
@@ -1106,7 +1085,7 @@ class HDF5BarReader(CurrencyAwareSessionBarReader):
         return pd.Timestamp(self.dates[nonzero_volume_ixs][-1], tz="UTC")
 
 
-class MultiCountryDailyBarReader(CurrencyAwareSessionBarReader):
+class MultiExchangeDailyBarReader(CurrencyAwareSessionBarReader):
     """
     Parameters
     ---------
@@ -1117,10 +1096,10 @@ class MultiCountryDailyBarReader(CurrencyAwareSessionBarReader):
 
     def __init__(self, readers):
         self._readers = readers
-        self._country_map = pd.concat(
+        self._exchange_map = pd.concat(
             [
-                pd.Series(index=reader.sids, data=country_code)
-                for country_code, reader in readers.items()
+                pd.Series(index=reader.sids, data=exchange_code)
+                for exchange_code, reader in readers.items()
             ]
         )
 
@@ -1136,8 +1115,8 @@ class MultiCountryDailyBarReader(CurrencyAwareSessionBarReader):
         """
         return cls(
             {
-                country: HDF5BarReader.from_file(h5_file, country)
-                for country in h5_file.keys()
+                exchange_code: HDF5BarReader.from_file(h5_file, exchange_code)
+                for exchange_code in h5_file.keys()
             }
         )
 
@@ -1154,31 +1133,29 @@ class MultiCountryDailyBarReader(CurrencyAwareSessionBarReader):
         return cls.from_file(h5py.File(path, "a"))
 
     @property
-    def countries(self):
-        """A set-like object of the country codes supplied by this reader."""
+    def exchanges(self):
+        """A set-like object of the exchange codes supplied by this reader."""
         return self._readers.keys()
 
-    def _country_code_for_assets(self, assets):
-        country_codes = self._country_map.reindex(assets)
+    def _exchange_code_for_assets(self, assets):
+        exchange_codes = self._exchange_map.reindex(assets)
 
         # Series.get() returns None if none of the labels are in the index.
-        if country_codes is not None:
-            unique_country_codes = country_codes.dropna().unique()
-            num_countries = len(unique_country_codes)
+        if exchange_codes is not None:
+            unique_exchange_codes = exchange_codes.dropna().unique()
+            num_exchanges = len(unique_exchange_codes)
         else:
-            num_countries = 0
+            num_exchanges = 0
 
-        if num_countries == 0:
+        if num_exchanges == 0:
             raise ValueError("At least one valid asset id is required.")
-        elif num_countries > 1:
+        elif num_exchanges > 1:
             raise NotImplementedError(
-                (
-                    "Assets were requested from multiple countries ({}),"
-                    " but multi-country reads are not yet supported."
-                ).format(list(unique_country_codes))
+                f"Assets were requested from multiple exchanges ({list(unique_exchange_codes)}),"
+                " but multi-country reads are not yet supported."
             )
 
-        return unique_country_codes.item()
+        return unique_exchange_codes.item()
 
     def load_raw_arrays(self, columns, start_date, end_date, assets):
         """
@@ -1200,7 +1177,7 @@ class MultiCountryDailyBarReader(CurrencyAwareSessionBarReader):
             (minutes in range, sids) with a dtype of float64, containing the
             values for the respective field over start and end dt range.
         """
-        country_code = self._country_code_for_assets(assets)
+        country_code = self._exchange_code_for_assets(assets)
 
         return self._readers[country_code].load_raw_arrays(
             columns,
@@ -1283,12 +1260,12 @@ class MultiCountryDailyBarReader(CurrencyAwareSessionBarReader):
             If the given sid is not valid.
         """
         try:
-            country_code = self._country_code_for_assets([sid])
+            exchange_code = self._exchange_code_for_assets([sid])
         except ValueError as exc:
             raise NoDataForSid(
                 f"Asset not contained in daily pricing file: {sid}"
             ) from exc
-        return self._readers[country_code].get_value(sid, dt, field)
+        return self._readers[exchange_code].get_value(sid, dt, field)
 
     def get_last_traded_dt(self, asset, dt):
         """
@@ -1309,8 +1286,8 @@ class MultiCountryDailyBarReader(CurrencyAwareSessionBarReader):
             The day of the last trade for the given asset, using the
             input dt as a vantage point.
         """
-        country_code = self._country_code_for_assets([asset.sid])
-        return self._readers[country_code].get_last_traded_dt(asset, dt)
+        exchange_code = self._exchange_code_for_assets([asset.sid])
+        return self._readers[exchange_code].get_last_traded_dt(asset, dt)
 
     def currency_codes(self, sids):
         """Get currencies in which prices are quoted for the requested sids.
@@ -1327,8 +1304,8 @@ class MultiCountryDailyBarReader(CurrencyAwareSessionBarReader):
         currency_codes : np.array[S3]
             Array of currency codes for listing currencies of ``sids``.
         """
-        country_code = self._country_code_for_assets(sids)
-        return self._readers[country_code].currency_codes(sids)
+        exchange_code = self._exchange_code_for_assets(sids)
+        return self._readers[exchange_code].currency_codes(sids)
 
 
 def check_sids_arrays_match(left, right, message):

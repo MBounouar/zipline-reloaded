@@ -75,9 +75,12 @@ class HDF5MinuteBarTestCase(
             data_frequency="minute",
         )
         self.writer.write_from_sid_df_pairs(
-            "US", iter(()), exchange_name=self.trading_calendar.name
+            self.trading_calendar.name,
+            iter(()),
         )
-        self.reader = HDF5BarReader.from_path(self.file_path, "US")
+        self.reader = HDF5BarReader.from_path(
+            self.file_path, self.trading_calendar.name
+        )
 
     def test_version(self):
         hdf5_version = self.reader.version
@@ -102,7 +105,8 @@ class HDF5MinuteBarTestCase(
             index=[minute],
         )
         self.writer.write_from_sid_df_pairs(
-            "US", ((sid, data),), exchange_name=self.trading_calendar.name
+            self.trading_calendar.name,
+            ((sid, data),),
         )
         # Clear cache
         self.reader.cache_clear()
@@ -129,7 +133,8 @@ class HDF5MinuteBarTestCase(
         )
 
         self.writer.write_from_sid_df_pairs(
-            "US", ((sid, data),), exchange_name=self.trading_calendar.name
+            self.trading_calendar.name,
+            ((sid, data),),
         )
         for field in data:
             val = self.reader.get_value(sid, minute, field)
@@ -158,19 +163,18 @@ class HDF5MinuteBarTestCase(
         # Create a new writer with `ohlc_ratios_per_sid` defined.
         scaling_factors = dict(zip(data.columns, [25, 25, 25, 25, 10]))
         writer.write_from_sid_df_pairs(
-            "US",
+            self.trading_calendar.name,
             ((sid, data),),
             scaling_factors=scaling_factors,
-            exchange_name=self.trading_calendar.name,
         )
 
-        reader = HDF5BarReader.from_path(file_name, "US")
+        reader = HDF5BarReader.from_path(file_name, self.trading_calendar.name)
 
         for field in data:
             val = reader.get_value(sid, minute, field)
             assert val == data.loc[minute, field]
             assert (
-                reader._country_group["data"][field].attrs["scaling_factor"]
+                reader._exchange_group["data"][field].attrs["scaling_factor"]
                 == scaling_factors[field]
             )
 
@@ -189,7 +193,8 @@ class HDF5MinuteBarTestCase(
             index=[minute_0, minute_1],
         )
         self.writer.write_from_sid_df_pairs(
-            "US", ((sid, data),), exchange_name=self.trading_calendar.name
+            self.trading_calendar.name,
+            ((sid, data),),
         )
 
         for minute_i in data.index:
@@ -211,7 +216,8 @@ class HDF5MinuteBarTestCase(
             index=[minute],
         )
         self.writer.write_from_sid_df_pairs(
-            "US", ((sid, data),), exchange_name=self.trading_calendar.name
+            self.trading_calendar.name,
+            ((sid, data),),
         )
         for field in data:
             val = self.reader.get_value(sid, minute, field)
@@ -231,7 +237,8 @@ class HDF5MinuteBarTestCase(
             index=[minute],
         )
         self.writer.write_from_sid_df_pairs(
-            "US", ((sid, data),), exchange_name=self.trading_calendar.name
+            self.trading_calendar.name,
+            ((sid, data),),
         )
 
         for field in data:
@@ -267,7 +274,8 @@ class HDF5MinuteBarTestCase(
             index=minutes,
         )
         self.writer.write_from_sid_df_pairs(
-            "US", ((sid, data),), exchange_name=self.trading_calendar.name
+            self.trading_calendar.name,
+            ((sid, data),),
         )
 
         minute = minutes[0]
@@ -293,12 +301,14 @@ class HDF5MinuteBarTestCase(
             index=[minute],
         )
         self.writer.write_from_sid_df_pairs(
-            "US", ((sid, data),), exchange_name=self.trading_calendar.name
+            self.trading_calendar.name,
+            ((sid, data),),
         )
 
         with pytest.raises(HDF5OverlappingData):
             self.writer.write_from_sid_df_pairs(
-                "US", ((sid, data),), exchange_name=self.trading_calendar.name
+                self.trading_calendar.name,
+                ((sid, data),),
             )
 
     def test_append_to_same_day(self):
@@ -316,7 +326,8 @@ class HDF5MinuteBarTestCase(
             index=[first_minute],
         )
         self.writer.write_from_sid_df_pairs(
-            "US", ((sid, data),), exchange_name=self.trading_calendar.name
+            self.trading_calendar.name,
+            ((sid, data),),
         )
 
         # Write data in the same day as the previous minute
@@ -332,7 +343,8 @@ class HDF5MinuteBarTestCase(
             index=[second_minute],
         )
         self.writer.write_from_sid_df_pairs(
-            "US", ((sid, new_data),), exchange_name=self.trading_calendar.name
+            self.trading_calendar.name,
+            ((sid, new_data),),
         )
 
         for field in new_data:
@@ -353,7 +365,8 @@ class HDF5MinuteBarTestCase(
         dt = self.market_opens[TEST_CALENDAR_STOP]
         data = pd.DataFrame(data=ohlcv, index=[dt])
         self.writer.write_from_sid_df_pairs(
-            "US", ((sid, data),), exchange_name=self.trading_calendar.name
+            self.trading_calendar.name,
+            ((sid, data),),
         )
         file_name = self.writer._filename
         # Open a new writer to cover `open` method, also a common usage
@@ -366,11 +379,12 @@ class HDF5MinuteBarTestCase(
         next_day_minute = dt + cday
         new_data = pd.DataFrame(data=ohlcv, index=[next_day_minute])
         writer.write_from_sid_df_pairs(
-            "US", ((sid, new_data * 0.5),), exchange_name=self.trading_calendar.name
+            self.trading_calendar.name,
+            ((sid, new_data * 0.5),),
         )
 
         # Get a new reader to test updated calendar.
-        reader = HDF5BarReader.from_path(file_name, "US")
+        reader = HDF5BarReader.from_path(file_name, self.trading_calendar.name)
 
         second_minute = dt + pd.Timedelta(minutes=1)
 
@@ -419,9 +433,8 @@ class HDF5MinuteBarTestCase(
             index=[minute],
         )
         self.writer.write_from_sid_df_pairs(
-            "US",
+            self.trading_calendar.name,
             ((sids[0], data_1),),
-            exchange_name=self.trading_calendar.name,
         )
 
         data_2 = pd.DataFrame(
@@ -435,9 +448,8 @@ class HDF5MinuteBarTestCase(
             index=[minute],
         )
         self.writer.write_from_sid_df_pairs(
-            "US",
+            self.trading_calendar.name,
             ((sids[1], data_2),),
-            exchange_name=self.trading_calendar.name,
         )
 
         for sid, data in zip(sids, [data_1, data_2]):
@@ -681,9 +693,8 @@ class HDF5MinuteBarTestCase(
             index=minutes,
         )
         self.writer.write_from_sid_df_pairs(
-            "US",
+            self.trading_calendar.name,
             ((sids[0], data_1),),
-            exchange_name=self.trading_calendar.name,
         )
 
         data_2 = pd.DataFrame(
@@ -698,13 +709,12 @@ class HDF5MinuteBarTestCase(
         )
 
         self.writer.write_from_sid_df_pairs(
-            "US",
+            self.trading_calendar.name,
             ((sids[1], data_2),),
-            exchange_name=self.trading_calendar.name,
         )
 
         file_name = self.writer._filename
-        reader = HDF5BarReader.from_path(file_name, "US")
+        reader = HDF5BarReader.from_path(file_name, self.trading_calendar.name)
 
         columns = ["open", "high", "low", "close", "volume"]
 
@@ -752,9 +762,8 @@ class HDF5MinuteBarTestCase(
             index=minutes,
         )
         self.writer.write_from_sid_df_pairs(
-            "US",
+            self.trading_calendar.name,
             ((sids[0], data_1),),
-            exchange_name=self.trading_calendar.name,
         )
 
         data_2 = pd.DataFrame(
@@ -768,9 +777,8 @@ class HDF5MinuteBarTestCase(
             index=minutes,
         )
         self.writer.write_from_sid_df_pairs(
-            "US",
+            self.trading_calendar.name,
             ((sids[1], data_2),),
-            exchange_name=self.trading_calendar.name,
         )
 
         reader = self.reader
@@ -821,7 +829,8 @@ class HDF5MinuteBarTestCase(
         )
         data = pd.DataFrame(cols, index=dts)
         self.writer.write_from_sid_df_pairs(
-            "US", ((sid, data),), exchange_name=self.trading_calendar.name
+            self.trading_calendar.name,
+            ((sid, data),),
         )
 
         assert (
@@ -868,7 +877,8 @@ class HDF5MinuteBarTestCase(
 
         data = pd.DataFrame(cols, index=dts)
         self.writer.write_from_sid_df_pairs(
-            "US", ((sid, data),), exchange_name=self.trading_calendar.name
+            self.trading_calendar.name,
+            ((sid, data),),
         )
 
         assert (
@@ -952,7 +962,8 @@ class HDF5MinuteBarTestCase(
             index=minutes,
         )
         self.writer.write_from_sid_df_pairs(
-            "US", ((sid, data),), exchange_name=self.trading_calendar.name
+            self.trading_calendar.name,
+            ((sid, data),),
         )
 
         # Open a new writer to cover `open` method, also truncating only
@@ -1020,7 +1031,8 @@ class HDF5MinuteBarTestCase(
             index=minutes,
         )
         self.writer.write_from_sid_df_pairs(
-            "US", ((sid, data),), exchange_name=self.trading_calendar.name
+            self.trading_calendar.name,
+            ((sid, data),),
         )
 
         # Truncate to first day in the calendar, a day before the first
@@ -1066,5 +1078,6 @@ class HDF5MinuteBarTestCase(
         )
         with pytest.raises(NotValidDate):
             self.writer.write_from_sid_df_pairs(
-                "US", ((sid, data),), exchange_name=self.trading_calendar.name
+                self.trading_calendar.name,
+                ((sid, data),),
             )

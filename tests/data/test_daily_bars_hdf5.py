@@ -41,7 +41,7 @@ from zipline.testing.predicates import (
     assert_sequence_equal,
 )
 from zipline.testing.fixtures import (
-    WithHDF5EquityMultiCountryDailyBarReader,
+    WithHDF5EquityMultiExchangeDailyBarReader,
     ZiplineTestCase,
     WithEquityDailyBarData,
     WithSeededRandomState,
@@ -134,9 +134,12 @@ class _DailyBarsTestCase(
 
     # The country under which these tests should be run.
     DAILY_BARS_TEST_QUERY_COUNTRY_CODE = "US"
+    DAILY_BARS_TEST_QUERY_EXCHANGE_CODE = "XNYS"
+    TRADING_CALENDAR_PRIMARY_CAE = "NYSE"
 
     # Currencies to use for assets in these tests.
     DAILY_BARS_TEST_CURRENCIES = {"US": ["USD"], "CA": ["USD", "CAD"]}
+    DAILY_BARS_TEST_CURRENCIES_EX = {"NYSE": ["USD"], "XTSE": ["USD", "CAD"]}
 
     @classmethod
     def init_class_fixtures(cls):
@@ -178,8 +181,8 @@ class _DailyBarsTestCase(
     @property
     def assets(self):
         return list(
-            self.asset_finder.equities_sids_for_country_code(
-                self.DAILY_BARS_TEST_QUERY_COUNTRY_CODE
+            self.asset_finder.equities_sids_for_exchange_name(
+                exchange_name=self.TRADING_CALENDAR_PRIMARY_CAL
             )
         )
 
@@ -222,9 +225,11 @@ def test_odd_query_assets():
 
 
 class _HDF5DailyBarTestCase(
-    WithHDF5EquityMultiCountryDailyBarReader,
+    WithHDF5EquityMultiExchangeDailyBarReader,
     _DailyBarsTestCase,
 ):
+    __test__ = False
+
     @classmethod
     def init_class_fixtures(cls):
         super(_HDF5DailyBarTestCase, cls).init_class_fixtures()
@@ -232,35 +237,33 @@ class _HDF5DailyBarTestCase(
         cls.daily_bar_reader = cls.hdf5_equity_daily_bar_reader
 
     @property
-    def single_country_reader(self):
-        return self.single_country_hdf5_equity_daily_bar_readers[
-            self.DAILY_BARS_TEST_QUERY_COUNTRY_CODE
+    def single_exchange_reader(self):
+        return self.single_exchange_hdf5_equity_daily_bar_readers[
+            self.DAILY_BARS_TEST_QUERY_EXCHANGE_CODE
         ]
 
     def test_asset_end_dates(self):
-        assert_sequence_equal(self.single_country_reader.sids, self.assets)
+        assert_sequence_equal(self.single_exchange_reader.sids, self.assets)
 
-        for ix, sid in enumerate(self.single_country_reader.sids):
+        for ix, sid in enumerate(self.single_exchange_reader.sids):
             assert_equal(
-                self.single_country_reader.asset_end_dates[ix],
+                self.single_exchange_reader.asset_end_dates[ix],
                 self.asset_end(sid).asm8,
-                msg=("asset_end_dates value for sid={} differs from expected").format(
-                    sid
-                ),
+                msg=(f"asset_end_dates value for sid={sid} differs from expected"),
             )
 
     def test_read_first_trading_day(self):
         assert self.daily_bar_reader.first_trading_day == self.sessions[0]
 
     def test_read_trading_calendar(self):
-        assert self.single_country_reader.trading_calendar == self.trading_calendar
+        assert self.single_exchange_reader.trading_calendar == self.trading_calendar
 
     def test_asset_start_dates(self):
-        assert_sequence_equal(self.single_country_reader.sids, self.assets)
+        assert_sequence_equal(self.single_exchange_reader.sids, self.assets)
 
-        for ix, sid in enumerate(self.single_country_reader.sids):
+        for ix, sid in enumerate(self.single_exchange_reader.sids):
             assert_equal(
-                self.single_country_reader.asset_start_dates[ix],
+                self.single_exchange_reader.asset_start_dates[ix],
                 self.asset_start(sid).asm8,
                 msg=(f"asset_start_dates value for sid={sid} differs from expected"),
             )
@@ -605,7 +608,7 @@ class _HDF5DailyBarTestCase(
         invalid_sids = [-1, -2]
 
         # XXX: We currently require at least one valid sid here, because the
-        # MultiCountryDailyBarReader needs one valid sid to be able to dispatch
+        # MultiExchangeDailyBarReader needs one valid sid to be able to dispatch
         # to a child reader. We could probably make that work, but there are no
         # real-world cases where we expect to get all-invalid currency queries,
         # so it's unclear whether we should do work to explicitly support such
@@ -617,11 +620,20 @@ class _HDF5DailyBarTestCase(
 
 
 class HDF5DailyBarUSTestCase(_HDF5DailyBarTestCase):
+    __test__ = True
+
+    TRADING_CALENDAR_PRIMARY_CAL = "NYSE"
+    DAILY_BARS_TEST_QUERY_EXCHANGE_CODE = "XNYS"
+    DAILY_BARS_TEST_QUERY_EXCHANGE_NAME = "NYSE"
     DAILY_BARS_TEST_QUERY_COUNTRY_CODE = "US"
 
 
 class HDF5DailyBarCanadaTestCase(_HDF5DailyBarTestCase):
+    __test__ = True
+
     TRADING_CALENDAR_PRIMARY_CAL = "TSX"
+    DAILY_BARS_TEST_QUERY_EXCHANGE_CODE = "XTSE"
+    DAILY_BARS_TEST_QUERY_EXCHANGE_NAME = "TSX"
     DAILY_BARS_TEST_QUERY_COUNTRY_CODE = "CA"
 
 

@@ -63,7 +63,7 @@ from ..data.fx import (
 from ..data.hdf5_daily_bars import (
     HDF5BarReader,
     HDF5BarWriter,
-    MultiCountryDailyBarReader,
+    MultiExchangeDailyBarReader,
 )
 from ..data.bcolz_minute_bars import (
     BcolzMinuteBarReader,
@@ -1253,7 +1253,7 @@ class WithWriteHDF5DailyBars(WithEquityDailyBarData, WithTmpDir):
         return cls.enter_class_context(writer.h5_file(mode="r"))
 
 
-class WithHDF5EquityMultiCountryDailyBarReader(WithWriteHDF5DailyBars):
+class WithHDF5EquityMultiExchangeDailyBarReader(WithWriteHDF5DailyBars):
     """
     Fixture providing cls.hdf5_daily_bar_path and
     cls.hdf5_equity_daily_bar_reader class level fixtures.
@@ -1298,7 +1298,7 @@ class WithHDF5EquityMultiCountryDailyBarReader(WithWriteHDF5DailyBars):
     @classmethod
     def init_class_fixtures(cls):
         super(
-            WithHDF5EquityMultiCountryDailyBarReader,
+            WithHDF5EquityMultiExchangeDailyBarReader,
             cls,
         ).init_class_fixtures()
 
@@ -1306,12 +1306,13 @@ class WithHDF5EquityMultiCountryDailyBarReader(WithWriteHDF5DailyBars):
 
         f = cls.write_hdf5_daily_bars(path, cls.HDF5_DAILY_BAR_COUNTRY_CODES)
 
-        cls.single_country_hdf5_equity_daily_bar_readers = {
-            country_code: HDF5BarReader.from_file(f, country_code) for country_code in f
+        cls.single_exchange_hdf5_equity_daily_bar_readers = {
+            exchange_code: HDF5BarReader.from_file(f, exchange_code)
+            for exchange_code in f
         }
 
-        cls.hdf5_equity_daily_bar_reader = MultiCountryDailyBarReader(
-            cls.single_country_hdf5_equity_daily_bar_readers
+        cls.hdf5_equity_daily_bar_reader = MultiExchangeDailyBarReader(
+            cls.single_exchange_hdf5_equity_daily_bar_readers
         )
 
 
