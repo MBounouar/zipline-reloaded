@@ -19,6 +19,7 @@
   // "forwardPorts": [],
 
   // Use 'postCreateCommand' to run commands after the container is created.
+  // In order to speed up install, we used a requirements.txt  when building the Dockerfile
   "postCreateCommand": "pip3 install --user -e .[dev,test]",
   
   // Configure tool-specific properties.
