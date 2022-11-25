@@ -319,7 +319,7 @@ class Classifier(RestrictedDTypeMixin, ComputableTerm):
                         choices=choices,
                     )
                 )
-        assert False, "Unknown dtype in Classifier.element_of %s." % self.dtype
+        raise AssertionError(f"Unknown dtype in Classifier.element_of {self.dtype}.")
 
     def postprocess(self, data):
         if self.dtype == int64_dtype:
