@@ -94,7 +94,7 @@ class _BoundColumnDescr:
                 dtype=dtype,
                 missing_value=missing_value,
             )
-        except NoDefaultMissingValue:
+        except NoDefaultMissingValue as exc:
             # Re-raise with a more specific message.
             raise NoDefaultMissingValue(
                 "Failed to create Column with name {name!r} and"
@@ -102,7 +102,7 @@ class _BoundColumnDescr:
                 "Columns with dtype {dtype} require a missing_value.\n"
                 "Please pass missing_value to Column() or use a different"
                 " dtype.".format(dtype=dtype, name=name)
-            )
+            ) from exc
         self.name = name
         self.doc = doc
         self.metadata = metadata
@@ -394,7 +394,7 @@ class DataSetMeta(type):
     families of specialized dataset.
     """
 
-    def __new__(mcls, name, bases, dict_):
+    def __new__(metacls, name, bases, dict_):
         if len(bases) != 1:
             # Disallowing multiple inheritance makes it easier for us to
             # determine whether a given dataset is the root for its family of
@@ -404,7 +404,7 @@ class DataSetMeta(type):
         # This marker is set in the class dictionary by `specialize` below.
         is_specialization = dict_.pop(IsSpecialization, False)
 
-        newtype = super(DataSetMeta, mcls).__new__(mcls, name, bases, dict_)
+        newtype = super(DataSetMeta, metacls).__new__(metacls, name, bases, dict_)
 
         if not isinstance(newtype.domain, Domain):
             raise TypeError(
@@ -462,7 +462,7 @@ class DataSetMeta(type):
 
         try:
             return self._domain_specializations[domain]
-        except KeyError:
+        except KeyError as exc:
             if not self._can_create_new_specialization(domain):
                 # This either means we're already a specialization and trying
                 # to create a new specialization, or we're the generic version
@@ -474,7 +474,7 @@ class DataSetMeta(type):
                         current=self.domain,
                         new=domain,
                     )
-                )
+                ) from exc
             new_type = self._create_specialization(domain)
             self._domain_specializations[domain] = new_type
             return new_type
@@ -655,7 +655,7 @@ class DataSet(object, metaclass=DataSetMeta):
             maybe_column = clsdict[name]
             if not isinstance(maybe_column, _BoundColumnDescr):
                 raise KeyError(name)
-        except KeyError:
+        except KeyError as exc:
             raise AttributeError(
                 "{dset} has no column {colname!r}:\n\n"
                 "Possible choices are:\n"
@@ -667,7 +667,7 @@ class DataSet(object, metaclass=DataSetMeta):
                         max_count=10,
                     ),
                 )
-            )
+            ) from exc
 
         # Resolve column descriptor into a BoundColumn.
         return maybe_column.__get__(None, cls)

@@ -582,8 +582,8 @@ class BcolzDailyBarReader(CurrencyAwareSessionBarReader):
     def _load_raw_arrays_date_to_index(self, date):
         try:
             return self.sessions.get_loc(date)
-        except KeyError:
-            raise NoDataOnDate(date)
+        except KeyError as exc:
+            raise NoDataOnDate(date) from exc
 
     def _spot_col(self, colname):
         """
@@ -650,10 +650,10 @@ class BcolzDailyBarReader(CurrencyAwareSessionBarReader):
         """
         try:
             day_loc = self.sessions.get_loc(day)
-        except Exception:
+        except Exception as exc :
             raise NoDataOnDate(
                 "day={0} is outside of calendar={1}".format(day, self.sessions)
-            )
+            ) from exc
         offset = day_loc - self._calendar_offsets[sid]
         if offset < 0:
             raise NoDataBeforeDate(

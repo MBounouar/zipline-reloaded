@@ -1053,8 +1053,8 @@ class BcolzMinuteBarReader(MinuteBarReader):
                     rootdir=self._get_carray_path(sid, field),
                     mode="r",
                 )
-            except IOError:
-                raise NoDataForSid("No minute data for sid {}.".format(sid))
+            except IOError as exc:
+                raise NoDataForSid("No minute data for sid {}.".format(sid)) from exc
 
         return carray
 
@@ -1104,8 +1104,8 @@ class BcolzMinuteBarReader(MinuteBarReader):
         else:
             try:
                 minute_pos = self._find_position_of_minute(dt)
-            except ValueError:
-                raise NoDataOnDate()
+            except ValueError as exc:
+                raise NoDataOnDate() from exc
 
             self._last_get_value_dt_value = dt.value
             self._last_get_value_dt_position = minute_pos

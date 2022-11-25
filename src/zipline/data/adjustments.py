@@ -298,13 +298,13 @@ class SQLiteAdjustmentReader:
     def get_df_from_table(self, table_name, convert_dates=False):
         try:
             date_cols = self._datetime_int_cols[table_name]
-        except KeyError:
+        except KeyError as exc:
             raise ValueError(
                 "Requested table {} not found.\n"
                 "Available tables: {}\n".format(
                     table_name, self._datetime_int_cols.keys()
                 )
-            )
+            ) from exc
 
         # Dates are stored in second resolution as ints in adj.db tables.
         kwargs = (

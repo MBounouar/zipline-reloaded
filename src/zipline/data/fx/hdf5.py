@@ -195,12 +195,12 @@ class HDF5FXRateReader(implements(FXRateReader)):
 
         try:
             dataset = self._group[DATA][rate][quote][RATES]
-        except KeyError:
+        except KeyError as exc:
             raise ValueError(
                 "FX rates not available for rate={}, quote_currency={}.".format(
                     rate, quote
                 )
-            )
+            ) from exc
 
         # OPTIMIZATION: Column indices correspond to dates, which must be in
         # sorted order. Rather than reading the entire dataset from h5, we can

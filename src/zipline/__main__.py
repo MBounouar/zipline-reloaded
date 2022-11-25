@@ -357,11 +357,13 @@ def zipline_magic(line, cell=None):
             # don't use system exit and propogate errors to the caller
             standalone_mode=False,
         )
-    except SystemExit as e:
+    except SystemExit as exc:
         # https://github.com/mitsuhiko/click/pull/533
         # even in standalone_mode=False `--help` really wants to kill us ;_;
-        if e.code:
-            raise ValueError("main returned non-zero status code: %d" % e.code)
+        if exc.code:
+            raise ValueError(
+                "main returned non-zero status code: %d" % exc.code
+            ) from exc
 
 
 @main.command()

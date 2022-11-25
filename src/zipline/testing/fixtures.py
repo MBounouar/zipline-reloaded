@@ -88,13 +88,13 @@ zipline_dir = Path(zipline.__file__).parent
 class DebugMROMeta(FinalMeta):
     """Metaclass that helps debug MRO resolution errors."""
 
-    def __new__(mcls, name, bases, clsdict):
+    def __new__(metacls, name, bases, clsdict):
         try:
-            return super(DebugMROMeta, mcls).__new__(mcls, name, bases, clsdict)
-        except TypeError as e:
-            if "(MRO)" in str(e):
+            return super(DebugMROMeta, metacls).__new__(metacls, name, bases, clsdict)
+        except TypeError as exc:
+            if "(MRO)" in str(exc):
                 msg = debug_mro_failure(name, bases)
-                raise TypeError(msg)
+                raise TypeError(msg) from exc
             else:
                 raise
 

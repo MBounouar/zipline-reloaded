@@ -32,8 +32,8 @@ class FinalMeta(type):
     overriding some methods or attributes.
     """
 
-    def __new__(mcls, name, bases, dict_):
-        for k, v in dict_.items():
+    def __new__(metacls, name, bases, dict_):
+        for k, _ in dict_.items():
             if is_final(k, bases):
                 raise _type_error
 
@@ -49,7 +49,7 @@ class FinalMeta(type):
             # users cannot just avoid the descriptor protocol.
             dict_["__setattr__"] = final(setattr_)
 
-        return super(FinalMeta, mcls).__new__(mcls, name, bases, dict_)
+        return super(FinalMeta, metacls).__new__(metacls, name, bases, dict_)
 
     def __setattr__(self, name, value):
         """This stops the `final` attributes from being reassigned on the

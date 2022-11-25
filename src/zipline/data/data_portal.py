@@ -492,10 +492,10 @@ class DataPortal:
             # an iterable.
             try:
                 iter(assets)
-            except TypeError:
+            except TypeError as exc:
                 raise TypeError(
                     "Unexpected 'assets' value of type {}.".format(type(assets))
-                )
+                ) from exc
 
         session_label = self.trading_calendar.minute_to_session_label(dt)
 

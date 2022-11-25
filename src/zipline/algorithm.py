@@ -760,10 +760,10 @@ class TradingAlgorithm:
         else:
             try:
                 return env[field]
-            except KeyError:
+            except KeyError as exc:
                 raise ValueError(
                     "%r is not a valid field for get_environment" % field,
-                )
+                ) from exc
 
     @api_method
     def fetch_csv(
@@ -1583,8 +1583,10 @@ class TradingAlgorithm:
             self._symbol_lookup_date = pd.Timestamp(dt).tz_localize("UTC")
         except TypeError:
             self._symbol_lookup_date = pd.Timestamp(dt).tz_convert("UTC")
-        except ValueError:
-            raise UnsupportedDatetimeFormat(input=dt, method="set_symbol_lookup_date")
+        except ValueError as exc:
+            raise UnsupportedDatetimeFormat(
+                input=dt, method="set_symbol_lookup_date"
+            ) from exc
 
     @property
     def data_frequency(self):
@@ -2228,11 +2230,11 @@ class TradingAlgorithm:
         """
         try:
             pipe, chunks, _ = self._pipelines[name]
-        except KeyError:
+        except KeyError as exc:
             raise NoSuchPipeline(
                 name=name,
                 valid=list(self._pipelines.keys()),
-            )
+            ) from exc
         return self._pipeline_output(pipe, chunks, name)
 
     def _pipeline_output(self, pipeline, chunks, name):
