@@ -2,7 +2,7 @@ from collections import namedtuple
 from errno import ENOENT
 from os import remove
 
-import logbook
+import logging
 import numpy as np
 from numpy import integer as any_integer
 import pandas as pd
@@ -22,7 +22,7 @@ from zipline.utils.pandas_utils import empty_dataframe
 from zipline.utils.sqlite_utils import group_into_chunks, coerce_string_to_conn
 from ._adjustments import load_adjustments_from_sqlite
 
-log = logbook.Logger(__name__)
+log = logging.getLogger(__name__)
 
 SQLITE_ADJUSTMENT_TABLENAMES = frozenset(["splits", "dividends", "mergers"])
 

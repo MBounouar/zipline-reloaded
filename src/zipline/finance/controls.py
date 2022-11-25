@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import abc
-import logbook
+import logging
 from datetime import datetime
 
 import pandas as pd
@@ -27,7 +27,7 @@ from zipline.utils.input_validation import (
     expect_types,
 )
 
-log = logbook.Logger("TradingControl")
+log = logging.getLogger("TradingControl")
 
 
 class TradingControl(metaclass=abc.ABCMeta):

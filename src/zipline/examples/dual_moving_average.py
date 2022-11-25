@@ -70,10 +70,11 @@ def handle_data(context, data):
 # this algorithm on quantopian.com
 def analyze(context=None, results=None):
     import matplotlib.pyplot as plt
-    import logbook
 
-    logbook.StderrHandler().push_application()
-    log = logbook.Logger("Algorithm")
+    # import logging
+
+    # logbook.StderrHandler().push_application()
+    # log = logbook.Logger("Algorithm")
 
     fig = plt.figure()
     ax1 = fig.add_subplot(211)
@@ -110,7 +111,7 @@ def analyze(context=None, results=None):
     else:
         msg = "AAPL, short_mavg & long_mavg data not captured using record()."
         ax2.annotate(msg, xy=(0.1, 0.5))
-        log.info(msg)
+        # log.info(msg)
 
     plt.show()
 

@@ -1,14 +1,14 @@
 import sys
-import logbook
+import logging
 import numpy as np
 
 from zipline.finance import commission, slippage
 
-zipline_logging = logbook.NestedSetup(
+zipline_logging = logging.NestedSetup(
     [
-        logbook.NullHandler(),
-        logbook.StreamHandler(sys.stdout, level=logbook.INFO),
-        logbook.StreamHandler(sys.stderr, level=logbook.ERROR),
+        logging.NullHandler(),
+        logging.StreamHandler(sys.stdout, level=logging.INFO),
+        logging.StreamHandler(sys.stderr, level=logging.ERROR),
     ]
 )
 zipline_logging.push_application()

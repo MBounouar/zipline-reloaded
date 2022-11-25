@@ -4,7 +4,7 @@ import sqlite3
 from unittest import TestCase
 import warnings
 
-from logbook import NullHandler, Logger
+from logging import NullHandler, Logger
 import numpy as np
 import pandas as pd
 from pandas.errors import PerformanceWarning
@@ -313,11 +313,11 @@ class WithLogger:
     fixture.
 
     After init_instance_fixtures has been called `self.log_handler` will be a
-    new ``logbook.NullHandler``.
+    new ``logging.NullHandler``.
 
     Methods
     -------
-    make_log_handler() -> logbook.LogHandler
+    make_log_handler() -> logging.LogHandler
         A class method which constructs the new log handler object. By default
         this will construct a ``NullHandler``.
     """

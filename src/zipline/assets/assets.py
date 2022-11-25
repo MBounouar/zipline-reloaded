@@ -21,7 +21,7 @@ from numbers import Integral
 from operator import itemgetter, attrgetter
 import struct
 
-import logbook
+import logging
 import numpy as np
 import pandas as pd
 from pandas import isnull
@@ -77,7 +77,7 @@ from zipline.utils.numpy_utils import as_column
 from zipline.utils.preprocess import preprocess
 from zipline.utils.sqlite_utils import group_into_chunks, coerce_string_to_eng
 
-log = logbook.Logger("assets.py")
+log = logging.getLogger("assets.py")
 
 # A set of fields that need to be converted to strings before building an
 # Asset to avoid unicode fields

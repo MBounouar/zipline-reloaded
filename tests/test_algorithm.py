@@ -20,7 +20,7 @@ from functools import partial
 from textwrap import dedent
 from copy import deepcopy
 
-import logbook
+import logging
 import toolz
 from parameterized import parameterized
 from testfixtures import TempDirectory
@@ -3720,7 +3720,7 @@ class TestOrderCancelation(zf.WithMakeAlgo, zf.ZiplineTestCase):
             minute_emission=minute_emission,
         )
 
-        log_catcher = logbook.TestHandler()
+        log_catcher = logging.TestHandler()
         with log_catcher:
             results = algo.run()
 
@@ -3743,7 +3743,9 @@ class TestOrderCancelation(zf.WithMakeAlgo, zf.ZiplineTestCase):
             assert np.copysign(389, direction) == the_order["filled"]
 
             warnings = [
-                record for record in log_catcher.records if record.level == logbook.WARNING
+                record
+                for record in log_catcher.records
+                if record.level == logging.WARNING
             ]
 
             assert 1 == len(warnings)
@@ -3766,7 +3768,7 @@ class TestOrderCancelation(zf.WithMakeAlgo, zf.ZiplineTestCase):
     def test_default_cancelation_policy(self):
         algo = self.prep_algo("")
 
-        log_catcher = logbook.TestHandler()
+        log_catcher = logging.TestHandler()
         with log_catcher:
             results = algo.run()
 
@@ -3786,7 +3788,7 @@ class TestOrderCancelation(zf.WithMakeAlgo, zf.ZiplineTestCase):
         # in daily mode, EODCancel does nothing.
         algo = self.prep_algo("set_cancel_policy(cancel_policy.EODCancel())", "daily")
 
-        log_catcher = logbook.TestHandler()
+        log_catcher = logging.TestHandler()
         with log_catcher:
             results = algo.run()
 
@@ -4444,7 +4446,7 @@ class TestOrderAfterDelist(zf.WithMakeAlgo, zf.ZiplineTestCase):
         with make_test_handler(self) as log_catcher:
             algo.run()
 
-            warnings = [r for r in log_catcher.records if r.level == logbook.WARNING]
+            warnings = [r for r in log_catcher.records if r.level == logging.WARNING]
 
             # one warning per order on the second day
             assert 6 * 390 == len(warnings)

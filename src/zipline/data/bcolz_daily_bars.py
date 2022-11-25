@@ -19,7 +19,7 @@ with warnings.catch_warnings():  # noqa
     from bcolz import carray, ctable
     import numpy as np
 
-import logbook
+import logging
 
 from numpy import (
     array,
@@ -50,7 +50,7 @@ from zipline.utils.memoize import lazyval
 from zipline.utils.cli import maybe_show_progress
 from ._equities import _compute_row_slices, _read_bcolz_data
 
-logger = logbook.Logger("UsEquityPricing")
+logger = logging.getLogger("UsEquityPricing")
 
 OHLC = frozenset(["open", "high", "low", "close"])
 US_EQUITY_PRICING_BCOLZ_COLUMNS = (
@@ -650,7 +650,7 @@ class BcolzDailyBarReader(CurrencyAwareSessionBarReader):
         """
         try:
             day_loc = self.sessions.get_loc(day)
-        except Exception as exc :
+        except Exception as exc:
             raise NoDataOnDate(
                 "day={0} is outside of calendar={1}".format(day, self.sessions)
             ) from exc

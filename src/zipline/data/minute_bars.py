@@ -22,7 +22,7 @@ from lru import LRU
 import bcolz
 from bcolz import ctable
 from intervaltree import IntervalTree
-import logbook
+import logging
 import numpy as np
 import pandas as pd
 from pandas import HDFStore
@@ -42,7 +42,7 @@ from zipline.utils.cli import maybe_show_progress
 from zipline.utils.compat import mappingproxy
 from zipline.utils.memoize import lazyval
 
-logger = logbook.Logger("MinuteBars")
+logger = logging.getLogger("MinuteBars")
 
 US_EQUITIES_MINUTES_PER_DAY = 390
 FUTURES_MINUTES_PER_DAY = 1440

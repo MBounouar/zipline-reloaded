@@ -17,7 +17,7 @@ from collections import namedtuple
 from copy import copy
 import warnings
 from datetime import tzinfo, time
-import logbook
+import logging
 import pytz
 import pandas as pd
 import numpy as np
@@ -127,7 +127,7 @@ from zipline.gens.sim_engine import MinuteSimulationClock
 from zipline.sources.benchmark_source import BenchmarkSource
 from zipline.zipline_warnings import ZiplineDeprecationWarning
 
-log = logbook.Logger("ZiplineLog")
+log = logging.getLogger("ZiplineLog")
 
 # For creating and storing pipeline instances
 AttachedPipeline = namedtuple("AttachedPipeline", "pipe chunks eager")

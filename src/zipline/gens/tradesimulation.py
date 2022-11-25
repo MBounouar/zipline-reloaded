@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from copy import copy
-import logbook
+import logging
 from zipline.finance.order import ORDER_STATUS
 from zipline.protocol import BarData
 from zipline.utils.api_support import ZiplineAPI
@@ -27,7 +27,7 @@ from zipline.gens.sim_engine import (
     BEFORE_TRADING_START_BAR,
 )
 
-log = logbook.Logger("Trade Simulation")
+log = logging.getLogger("Trade Simulation")
 
 
 class AlgorithmSimulator:
@@ -82,7 +82,7 @@ class AlgorithmSimulator:
             if "algo_dt" not in record.extra:
                 record.extra["algo_dt"] = self.simulation_dt
 
-        self.processor = logbook.Processor(inject_algo_dt)
+        self.processor = logging.Processor(inject_algo_dt)
 
     def get_simulation_dt(self):
         return self.simulation_dt

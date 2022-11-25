@@ -2,7 +2,7 @@ import errno
 import os
 
 import click
-import logbook
+import logging
 import pandas as pd
 
 import zipline
@@ -49,7 +49,7 @@ except NameError:
 def main(ctx, extension, strict_extensions, default_extension, x):
     """Top level zipline entry point."""
     # install a logbook handler before performing any other operations
-    logbook.StderrHandler().push_application()
+    logging.StderrHandler().push_application()
     create_args(x, zipline.extension_args)
     load_extensions(
         default_extension,

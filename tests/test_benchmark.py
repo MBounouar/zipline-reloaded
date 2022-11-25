@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import logbook
+import logging
 import numpy as np
 import pandas as pd
 from pandas.testing import assert_series_equal
@@ -301,7 +301,7 @@ class BenchmarkSpecTestCase(WithTmpDir, WithAssetFinder, ZiplineTestCase):
         assert sid is None
         assert returns is None
 
-        warnings = self.logs_at_level(logbook.WARNING)
+        warnings = self.logs_at_level(logging.WARNING)
         expected = [
             "No benchmark configured. Assuming algorithm calls set_benchmark.",
             "Pass --benchmark-sid, --benchmark-symbol, or --benchmark-file to set a source of benchmark returns.",  # noqa
@@ -323,7 +323,7 @@ class BenchmarkSpecTestCase(WithTmpDir, WithAssetFinder, ZiplineTestCase):
         assert sid is None
         assert_series_equal(returns, self.zero_returns)
 
-        warnings = self.logs_at_level(logbook.WARNING)
+        warnings = self.logs_at_level(logging.WARNING)
         expected = []
         assert_equal(warnings, expected)
 
@@ -344,7 +344,7 @@ class BenchmarkSpecTestCase(WithTmpDir, WithAssetFinder, ZiplineTestCase):
         assert_equal(sid, expected_sid)
         assert returns is None
 
-        warnings = self.logs_at_level(logbook.WARNING)
+        warnings = self.logs_at_level(logging.WARNING)
         expected = []
         assert_equal(warnings, expected)
 
@@ -363,7 +363,7 @@ class BenchmarkSpecTestCase(WithTmpDir, WithAssetFinder, ZiplineTestCase):
         assert_equal(sid, input_sid)
         assert returns is None
 
-        warnings = self.logs_at_level(logbook.WARNING)
+        warnings = self.logs_at_level(logging.WARNING)
         expected = []
         assert_equal(warnings, expected)
 
@@ -400,6 +400,6 @@ class BenchmarkSpecTestCase(WithTmpDir, WithAssetFinder, ZiplineTestCase):
 
         assert_series_equal(returns, expected_returns, check_names=False)
 
-        warnings = self.logs_at_level(logbook.WARNING)
+        warnings = self.logs_at_level(logging.WARNING)
         expected = []
         assert_equal(warnings, expected)

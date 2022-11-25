@@ -15,7 +15,7 @@ import sys
 import tempfile
 from traceback import format_exception
 
-from logbook import TestHandler
+from logging import TestHandler
 from mock import patch
 
 from numpy.testing import assert_allclose, assert_array_equal
@@ -1322,7 +1322,7 @@ def make_test_handler(testcase, *args, **kwargs):
 
     Returns
     -------
-    handler: logbook.TestHandler
+    handler: logging.TestHandler
         The handler to use for the test case.
     """
     handler = TestHandler(*args, **kwargs)

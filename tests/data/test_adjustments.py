@@ -1,4 +1,4 @@
-import logbook
+import logging
 import numpy as np
 import pandas as pd
 
@@ -25,7 +25,7 @@ nat = pd.Timestamp("nat")
 class TestSQLiteAdjustmentsWriter(
     WithTradingCalendars, WithInstanceTmpDir, WithLogger, ZiplineTestCase
 ):
-    make_log_handler = logbook.TestHandler
+    make_log_handler = logging.TestHandler
 
     def init_instance_fixtures(self):
         super(TestSQLiteAdjustmentsWriter, self).init_instance_fixtures()

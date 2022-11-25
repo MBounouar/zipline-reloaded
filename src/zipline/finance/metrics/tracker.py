@@ -12,13 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import logbook
+import logging
 
 from ..ledger import Ledger
 from zipline.utils.exploding_object import NamedExplodingObject
 
 
-log = logbook.Logger(__name__)
+log = logging.getLogger(__name__)
 
 
 class MetricsTracker:

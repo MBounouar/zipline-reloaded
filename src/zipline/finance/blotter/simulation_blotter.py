@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import logbook
+import logging
 from collections import defaultdict
 from copy import copy
 
@@ -33,8 +33,8 @@ from zipline.finance.commission import (
 )
 from zipline.utils.input_validation import expect_types
 
-log = logbook.Logger("Blotter")
-warning_logger = logbook.Logger("AlgoWarning")
+log = logging.getLogger("Blotter")
+warning_logger = logging.getLogger("AlgoWarning")
 
 
 @register(Blotter, "default")
