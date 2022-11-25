@@ -14,7 +14,7 @@
 # limitations under the License.
 from operator import mul
 
-from logbook import Logger
+import logbook
 
 import numpy as np
 from numpy import float64, int64, nan
@@ -58,7 +58,7 @@ from zipline.utils.pandas_utils import normalize_date
 from zipline.errors import HistoryWindowStartsBeforeData
 
 
-log = Logger("DataPortal")
+log = logbook.Logger("DataPortal")
 
 BASE_FIELDS = frozenset(
     [

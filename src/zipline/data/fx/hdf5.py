@@ -94,7 +94,7 @@ for column i in a data node is the ith element of /index/dts.
 """
 from interface import implements
 import h5py
-from logbook import Logger
+import logbook
 import numpy as np
 import pandas as pd
 
@@ -113,7 +113,7 @@ CURRENCIES = "currencies"
 DTS = "dts"
 RATES = "rates"
 
-log = Logger(__name__)
+log = logbook.Logger(__name__)
 
 
 class HDF5FXRateReader(implements(FXRateReader)):

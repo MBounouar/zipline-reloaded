@@ -4,7 +4,7 @@ import hashlib
 from textwrap import dedent
 import warnings
 
-from logbook import Logger
+import logbook
 import numpy
 import pandas as pd
 from pandas import read_csv
@@ -15,7 +15,7 @@ from zipline.errors import MultipleSymbolsFound, SymbolNotFound, ZiplineError
 from zipline.protocol import DATASOURCE_TYPE, Event
 from zipline.assets import Equity
 
-logger = Logger("Requests Source Logger")
+logger = logbook.Logger("Requests Source Logger")
 
 
 def roll_dts_to_midnight(dts, trading_day):

@@ -22,7 +22,6 @@ from copy import deepcopy
 
 import logbook
 import toolz
-from logbook import TestHandler, WARNING
 from parameterized import parameterized
 from testfixtures import TempDirectory
 
@@ -3586,7 +3585,7 @@ class TestFuturesAlgo(zf.WithMakeAlgo, zf.ZiplineTestCase):
             # Add 1 to the order price because the order does not fill until
             # the bar after the price is recorded.
             order_price = algo.order_price + i + 1
-            expected_impact = order_price * 0.1 * (0.05**2)
+            expected_impact = order_price * 0.1 * (0.05 ** 2)
             expected_price = order_price + expected_impact
             assert txn["price"] == expected_price
 
@@ -3721,7 +3720,7 @@ class TestOrderCancelation(zf.WithMakeAlgo, zf.ZiplineTestCase):
             minute_emission=minute_emission,
         )
 
-        log_catcher = TestHandler()
+        log_catcher = logbook.TestHandler()
         with log_catcher:
             results = algo.run()
 
@@ -3744,7 +3743,7 @@ class TestOrderCancelation(zf.WithMakeAlgo, zf.ZiplineTestCase):
             assert np.copysign(389, direction) == the_order["filled"]
 
             warnings = [
-                record for record in log_catcher.records if record.level == WARNING
+                record for record in log_catcher.records if record.level == logbook.WARNING
             ]
 
             assert 1 == len(warnings)
@@ -3767,7 +3766,7 @@ class TestOrderCancelation(zf.WithMakeAlgo, zf.ZiplineTestCase):
     def test_default_cancelation_policy(self):
         algo = self.prep_algo("")
 
-        log_catcher = TestHandler()
+        log_catcher = logbook.TestHandler()
         with log_catcher:
             results = algo.run()
 
@@ -3787,7 +3786,7 @@ class TestOrderCancelation(zf.WithMakeAlgo, zf.ZiplineTestCase):
         # in daily mode, EODCancel does nothing.
         algo = self.prep_algo("set_cancel_policy(cancel_policy.EODCancel())", "daily")
 
-        log_catcher = TestHandler()
+        log_catcher = logbook.TestHandler()
         with log_catcher:
             results = algo.run()
 

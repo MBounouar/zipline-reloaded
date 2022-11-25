@@ -6,7 +6,7 @@ import tarfile
 from zipfile import ZipFile
 
 from click import progressbar
-from logbook import Logger
+import logbook
 import pandas as pd
 import requests
 from urllib.parse import urlencode
@@ -15,7 +15,7 @@ from zipline.utils.calendar_utils import register_calendar_alias
 from . import core as bundles
 import numpy as np
 
-log = Logger(__name__)
+log = logbook.Logger(__name__)
 
 ONE_MEGABYTE = 1024 * 1024
 QUANDL_DATA_URL = "https://www.quandl.com/api/v3/datatables/WIKI/PRICES.csv?"

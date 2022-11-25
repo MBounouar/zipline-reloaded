@@ -5,7 +5,7 @@ import shutil
 import warnings
 
 import click
-from logbook import Logger
+import logbook
 import pandas as pd
 from zipline.utils.calendar_utils import get_calendar
 from toolz import curry, complement, take
@@ -28,7 +28,7 @@ from zipline.utils.input_validation import ensure_timestamp, optionally
 import zipline.utils.paths as pth
 from zipline.utils.preprocess import preprocess
 
-log = Logger(__name__)
+log = logbook.Logger(__name__)
 
 
 def asset_db_path(bundle_name, timestr, environ=None, db_version=None):
