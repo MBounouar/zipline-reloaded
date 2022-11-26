@@ -71,10 +71,15 @@ def handle_data(context, data):
 def analyze(context=None, results=None):
     import matplotlib.pyplot as plt
 
-    # import logging
+    import logging
 
-    # logbook.StderrHandler().push_application()
-    # log = logbook.Logger("Algorithm")
+    logging.basicConfig(
+        # format="%(message)s",
+        format="%(asctime)s :: %(levelname)s :: %(name)s :: %(message)s",
+        level=logging.INFO,
+        datefmt="%Y-%m-%dT%H:%M:%S%z",
+    )
+    log = logging.getLogger("Algorithm")
 
     fig = plt.figure()
     ax1 = fig.add_subplot(211)
@@ -111,7 +116,7 @@ def analyze(context=None, results=None):
     else:
         msg = "AAPL, short_mavg & long_mavg data not captured using record()."
         ax2.annotate(msg, xy=(0.1, 0.5))
-        # log.info(msg)
+        log.info(msg)
 
     plt.show()
 

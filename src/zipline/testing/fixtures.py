@@ -4,7 +4,6 @@ import sqlite3
 from unittest import TestCase
 import warnings
 
-from logging import NullHandler, Logger
 import numpy as np
 import pandas as pd
 from pandas.errors import PerformanceWarning
@@ -305,32 +304,6 @@ class WithDefaultDateBounds(object, metaclass=DebugMROMeta):
 
     START_DATE = pd.Timestamp("2006-01-03", tz="utc")
     END_DATE = pd.Timestamp("2006-12-29", tz="utc")
-
-
-class WithLogger:
-    """
-    ZiplineTestCase mixin providing cls.log_handler as an instance-level
-    fixture.
-
-    After init_instance_fixtures has been called `self.log_handler` will be a
-    new ``logging.NullHandler``.
-
-    Methods
-    -------
-    make_log_handler() -> logging.LogHandler
-        A class method which constructs the new log handler object. By default
-        this will construct a ``NullHandler``.
-    """
-
-    make_log_handler = NullHandler
-
-    @classmethod
-    def init_class_fixtures(cls):
-        super(WithLogger, cls).init_class_fixtures()
-        cls.log = Logger()
-        cls.log_handler = cls.enter_class_context(
-            cls.make_log_handler().applicationbound(),
-        )
 
 
 class WithAssetFinder(WithDefaultDateBounds):
@@ -1982,7 +1955,7 @@ class WithCreateBarData(WithDataPortal):
         )
 
 
-class WithMakeAlgo(WithBenchmarkReturns, WithSimParams, WithLogger, WithDataPortal):
+class WithMakeAlgo(WithBenchmarkReturns, WithSimParams, WithDataPortal):
     """
     ZiplineTestCase mixin that provides a ``make_algo`` method.
     """

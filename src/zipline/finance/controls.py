@@ -83,12 +83,9 @@ class TradingControl(metaclass=abc.ABCMeta):
             )
         elif self.on_error == "log":
             log.error(
-                "Order for {amount} shares of {asset} at {dt} "
-                "violates trading constraint {constraint}",
-                amount=amount,
-                asset=asset,
-                dt=datetime,
-                constraint=constraint,
+                "Order for %(amount)s shares of %(asset)s at %(dt)s "
+                "violates trading constraint %(constraint)s",
+                dict(amount=amount, asset=asset, dt=datetime, constraint=constraint),
             )
 
     def __repr__(self):

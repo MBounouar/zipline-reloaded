@@ -48,8 +48,15 @@ except NameError:
 @click.pass_context
 def main(ctx, extension, strict_extensions, default_extension, x):
     """Top level zipline entry point."""
-    # install a logbook handler before performing any other operations
-    logging.StderrHandler().push_application()
+    # install a logging handler before performing any other operations
+
+    logging.basicConfig(
+        # format="%(message)s",
+        format="%(asctime)s :: %(levelname)s :: %(name)s :: %(message)s",
+        level=logging.INFO,
+        datefmt="%Y-%m-%dT%H:%M:%S%z",
+    )
+
     create_args(x, zipline.extension_args)
     load_extensions(
         default_extension,

@@ -543,13 +543,15 @@ def assert_timestamp_and_datetime_equal(
 
     Returns raises unless ``allow_datetime_coercions`` is passed as True.
     """
-    assert allow_datetime_coercions or type(result) == type(
-        expected
-    ), "%sdatetime types (%s, %s) don't match and " "allow_datetime_coercions was not set.\n%s" % (
-        _fmt_msg(msg),
-        type(result),
-        type(expected),
-        _fmt_path(path),
+    assert allow_datetime_coercions or type(result) == type(expected), (
+        "%sdatetime types (%s, %s) don't match and "
+        "allow_datetime_coercions was not set.\n%s"
+        % (
+            _fmt_msg(msg),
+            type(result),
+            type(expected),
+            _fmt_path(path),
+        )
     )
 
     if isinstance(result, pd.Timestamp) and isinstance(expected, pd.Timestamp):

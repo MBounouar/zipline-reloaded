@@ -535,14 +535,14 @@ class BenchmarkSpec:
                 end_date=end_date,
             )
         else:
-            log.warn(
+            log.warning(
                 "No benchmark configured. " "Assuming algorithm calls set_benchmark."
             )
-            log.warn(
+            log.warning(
                 "Pass --benchmark-sid, --benchmark-symbol, or"
                 " --benchmark-file to set a source of benchmark returns."
             )
-            log.warn(
+            log.warning(
                 "Pass --no-benchmark to use a dummy benchmark " "of zero returns.",
             )
             benchmark_sid = None

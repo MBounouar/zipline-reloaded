@@ -308,7 +308,7 @@ def quantopian_quandl_bundle(
 
     with tarfile.open("r", fileobj=data) as tar:
         if show_progress:
-            log.info("Writing data to %s." % output_dir)
+            log.info("Writing data to %s.", output_dir)
         tar.extractall(output_dir)
 
 

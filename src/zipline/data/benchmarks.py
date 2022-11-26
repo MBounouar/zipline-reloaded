@@ -33,7 +33,7 @@ def get_benchmark_returns_from_file(filelike):
         2020-01-03 00:00:00+00:00,-0.02
 
     """
-    log.info("Reading benchmark returns from {}", filelike)
+    log.info("Reading benchmark returns from %s", filelike)
 
     df = pd.read_csv(
         filelike,

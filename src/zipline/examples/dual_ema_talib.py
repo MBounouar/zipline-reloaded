@@ -88,7 +88,13 @@ def analyze(context=None, results=None):
     import matplotlib.pyplot as plt
     import logging
 
-    logging.StderrHandler().push_application()
+    logging.basicConfig(
+        # format="%(message)s",
+        format="%(asctime)s :: %(levelname)s :: %(name)s :: %(message)s",
+        level=logging.INFO,
+        datefmt="%Y-%m-%dT%H:%M:%S%z",
+    )
+
     log = logging.getLogger("Algorithm")
 
     fig = plt.figure()
