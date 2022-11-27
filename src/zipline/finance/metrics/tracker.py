@@ -334,7 +334,7 @@ class MetricsTracker:
         and send it out on the results socket.
         """
         log.info(
-            "\n Simulated %(days)s trading days\n first open: %(first)s\n last close: %(last)s",
+            "Simulated %(days)s trading days\n first open: %(first)s\n last close: %(last)s",
             dict(
                 days=self._session_count,
                 first=self._trading_calendar.session_open(self._first_session),

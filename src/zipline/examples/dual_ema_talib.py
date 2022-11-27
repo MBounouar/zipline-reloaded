@@ -89,8 +89,7 @@ def analyze(context=None, results=None):
     import logging
 
     logging.basicConfig(
-        # format="%(message)s",
-        format="%(asctime)s :: %(levelname)s :: %(name)s :: %(message)s",
+        format="[%(asctime)s-%(levelname)s][%(name)s]\n %(message)s",
         level=logging.INFO,
         datefmt="%Y-%m-%dT%H:%M:%S%z",
     )

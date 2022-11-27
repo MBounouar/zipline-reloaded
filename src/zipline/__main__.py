@@ -51,8 +51,7 @@ def main(ctx, extension, strict_extensions, default_extension, x):
     # install a logging handler before performing any other operations
 
     logging.basicConfig(
-        # format="%(message)s",
-        format="%(asctime)s :: %(levelname)s :: %(name)s :: %(message)s",
+        format="[%(asctime)s-%(levelname)s][%(name)s]\n %(message)s",
         level=logging.INFO,
         datefmt="%Y-%m-%dT%H:%M:%S%z",
     )

@@ -78,11 +78,9 @@ class AlgorithmSimulator:
 
         # Processor function for injecting the algo_dt into
         # user prints/logs.
-        def inject_algo_dt(record):
-            if "algo_dt" not in record.extra:
-                record.extra["algo_dt"] = self.simulation_dt
 
-        self.processor = logging.Processor(inject_algo_dt)
+        # TODO CHECK: Disabled the old logbook mechanism,
+        # didn't replace with an equivalent `logging` approach.
 
     def get_simulation_dt(self):
         return self.simulation_dt
@@ -192,7 +190,6 @@ class AlgorithmSimulator:
 
         with ExitStack() as stack:
             stack.callback(on_exit)
-            stack.enter_context(self.processor)
             stack.enter_context(ZiplineAPI(self.algo))
 
             if algo.data_frequency == "minute":
