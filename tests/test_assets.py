@@ -765,7 +765,6 @@ class TestAssetFinder:
             assert A_result.asset_name == "Asset A"
 
     def test_lookup_symbol(self, asset_finder):
-
         # Incrementing by two so that start and end dates for each
         # generated Asset don't overlap (each Asset's end_date is the
         # day after its start date.)
@@ -912,7 +911,7 @@ class TestAssetFinder:
                     "sid": 1,
                     "symbol": "FOOB",
                     "start_date": date.value,
-                    "end_date": date.max.value,
+                    "end_date": date.max.asm8.view("i8"),
                     "exchange": "NYSE",
                 },
                 {
@@ -926,7 +925,7 @@ class TestAssetFinder:
                     "sid": 2,
                     "symbol": "FOO_B",
                     "start_date": (date + timedelta(days=61)).value,
-                    "end_date": date.max.value,
+                    "end_date": date.max.asm8.view("i8"),
                     "exchange": "NYSE",
                 },
             ]
@@ -1981,7 +1980,7 @@ class TestAssetFinderMultipleCountries:
                         "sid": n * 2,
                         "symbol": "FOOB",
                         "start_date": date.value,
-                        "end_date": date.max.value,
+                        "end_date": date.max.asm8.view("i8"),
                         "exchange": "EXCHANGE %d" % n,
                     },
                     {
@@ -1995,7 +1994,7 @@ class TestAssetFinderMultipleCountries:
                         "sid": n * 2 + 1,
                         "symbol": "FOO_B",
                         "start_date": (date + timedelta(days=61)).value,
-                        "end_date": date.max.value,
+                        "end_date": date.max.asm8.view("i8"),
                         "exchange": "EXCHANGE %d" % n,
                     },
                 ]
