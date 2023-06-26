@@ -39,7 +39,7 @@ except AttributeError:
     assert_array_compare = np.testing.assert_array_compare
 
 NaTmap = {
-    np.dtype("datetime64[%s]" % unit): np.datetime64("NaT", unit)
+    np.dtype(f"datetime64[{unit}]"): np.datetime64("NaT", unit)
     for unit in ("ns", "us", "ms", "s", "m", "D")
 }
 
@@ -136,7 +136,7 @@ def coerce_to_dtype(dtype, value):
 
     Only datetime64[ns] and datetime64[D] are supported for datetime dtypes.
     """
-    name = np.dtype.name
+    name = dtype.name
     if name.startswith("datetime64"):
         if name == "datetime64[ns]":
             return make_datetime64ns(value)
