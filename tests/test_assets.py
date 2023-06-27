@@ -2032,10 +2032,7 @@ def sql_db(request, postgresql=None):
         connection = "sqlite:///:memory:"
     # elif request.param == "postgresql":
     #     connection = f"postgresql://{postgresql.info.user}:@{postgresql.info.host}:{postgresql.info.port}/{postgresql.info.dbname}"
-    request.cls.engine = sa.create_engine(
-        connection,
-        future=False,
-    )
+    request.cls.engine = sa.create_engine(connection)
     yield request.cls.engine
     request.cls.engine.dispose()
     request.cls.engine = None
@@ -2044,7 +2041,7 @@ def sql_db(request, postgresql=None):
 @pytest.fixture(scope="function")
 def setup_empty_assets_db(sql_db, request):
     AssetDBWriter(sql_db).write(None)
-    request.cls.metadata = sa.MetaData(sql_db)
+    request.cls.metadata = sa.MetaData()
     request.cls.metadata.reflect(bind=sql_db)
 
 
@@ -2099,22 +2096,23 @@ class TestAssetDBVersioning:
 
     def test_finder_checks_version(self):
         version_table = self.metadata.tables["version_info"]
-        with self.engine.begin() as conn:
+        with self.engine.connect() as conn:
             conn.execute(version_table.delete())
             write_version_info(conn, version_table, -2)
+            conn.commit()
             check_version_info(conn, version_table, -2)
-
             # Assert that trying to build a finder with a bad db raises an error
             with pytest.raises(AssetDBVersionError):
-                AssetFinder(engine=conn)
+                AssetFinder(engine=self.engine)
 
             # Change the version number of the db to the correct version
             conn.execute(version_table.delete())
             write_version_info(conn, version_table, ASSET_DB_VERSION)
             check_version_info(conn, version_table, ASSET_DB_VERSION)
+            conn.commit()
 
             # Now that the versions match, this Finder should succeed
-            AssetFinder(engine=conn)
+            AssetFinder(engine=self.engine)
 
     def test_downgrade(self):
         # Attempt to downgrade a current assets db all the way down to v0
@@ -2122,8 +2120,8 @@ class TestAssetDBVersioning:
 
         # first downgrade to v3
         downgrade(self.engine, 3)
-        metadata = sa.MetaData(conn)
-        metadata.reflect()
+        metadata = sa.MetaData()
+        metadata.reflect(conn)
         check_version_info(conn, metadata.tables["version_info"], 3)
         assert not ("exchange_full" in metadata.tables)
 
@@ -2131,8 +2129,8 @@ class TestAssetDBVersioning:
         downgrade(self.engine, 0)
 
         # Verify that the db version is now 0
-        metadata = sa.MetaData(conn)
-        metadata.reflect()
+        metadata = sa.MetaData()
+        metadata.reflect(conn)
         version_table = metadata.tables["version_info"]
         check_version_info(conn, version_table, 0)
 
@@ -2166,8 +2164,8 @@ class TestAssetDBVersioning:
         AssetDBWriter(self.engine).write(equities=equities)
 
         downgrade(self.engine, 4)
-        metadata = sa.MetaData(self.engine)
-        metadata.reflect()
+        metadata = sa.MetaData()
+        metadata.reflect(self.engine)
 
         def select_fields(r):
             return r.sid, r.symbol, r.asset_name, r.start_date, r.end_date
@@ -2212,8 +2210,8 @@ class TestAssetDBVersioning:
         )
 
         downgrade(self.engine, 6)
-        metadata = sa.MetaData(self.engine)
-        metadata.reflect()
+        metadata = sa.MetaData()
+        metadata.reflect(self.engine)
 
         expected_sids = {0, 2}
 
