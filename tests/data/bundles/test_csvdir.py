@@ -1,21 +1,14 @@
-import pytest
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-from os.path import (
-    dirname,
-    join,
-    realpath,
-)
+import pytest
 
+from zipline.data.bundles import bundles, ingest, load
 from zipline.utils.calendar_utils import get_calendar
-
-from zipline.data.bundles import ingest, load, bundles
 from zipline.utils.functional import apply
 
-TEST_RESOURCE_PATH = join(
-    dirname(dirname(dirname(realpath(__file__)))),
-    "resources",  # zipline_repo/tests
-)
+TEST_RESOURCE_PATH = Path(__file__).parent.parent.parent / "resources"
 
 
 class TestCSVDIRBundle:
@@ -40,13 +33,11 @@ class TestCSVDIRBundle:
 
         def per_symbol(symbol):
             df = pd.read_csv(
-                join(
-                    TEST_RESOURCE_PATH,
-                    "csvdir_samples",
-                    "csvdir",
-                    "daily",
-                    symbol + ".csv.gz",
-                ),
+                TEST_RESOURCE_PATH
+                / "csvdir_samples"
+                / "csvdir"
+                / "daily"
+                / f"{symbol}.csv.gz",
                 parse_dates=["date"],
                 index_col="date",
                 usecols=[
@@ -272,11 +263,7 @@ class TestCSVDIRBundle:
 
     def test_bundle(self):
         environ = {
-            "CSVDIR": join(
-                TEST_RESOURCE_PATH,
-                "csvdir_samples",
-                "csvdir",
-            ),
+            "CSVDIR": TEST_RESOURCE_PATH / "csvdir_samples" / "csvdir",
         }
 
         ingest("csvdir", environ=environ)

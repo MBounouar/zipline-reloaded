@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import abc
-
 from abc import abstractmethod
 
 from zipline.gens.sim_engine import SESSION_END
@@ -40,7 +39,7 @@ class CancelPolicy(metaclass=abc.ABCMeta):
         should_cancel : bool
             Should all open orders be cancelled?
         """
-        pass
+        ...
 
 
 class EODCancel(CancelPolicy):

@@ -1,7 +1,6 @@
-"""
-Tests for slicing pipeline terms.
-"""
-from numpy import where
+"""Tests for slicing pipeline terms."""
+
+import numpy as np
 import pandas as pd
 from pandas.testing import assert_frame_equal
 
@@ -343,7 +342,7 @@ class SliceTestCase(WithSeededRandomPipelineEngine, ZiplineTestCase):
                     # based on the masked it used.
                     assert single_column_output.shape == (1, 1)
                     single_column_output_value = single_column_output[0][0]
-                    expected_value = where(mask, col, 0).sum()
+                    expected_value = np.where(mask, col, 0).sum()
                     assert single_column_output_value == expected_value
 
             columns = {"uses_single_column_input": UsesSingleColumnInput()}

@@ -1,31 +1,19 @@
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import toolz.curried.operator as op
-from os.path import (
-    dirname,
-    join,
-    realpath,
-)
 
-from zipline.utils.calendar_utils import get_calendar
-from zipline.data.bundles import ingest, load, bundles
+from zipline.data.bundles import bundles, ingest, load
 from zipline.data.bundles.quandl import format_metadata_url, load_data_table
 from zipline.lib.adjustment import Float64Multiply
-from zipline.testing import (
-    tmp_dir,
-    patch_read_csv,
-)
-from zipline.testing.fixtures import (
-    ZiplineTestCase,
-    WithResponses,
-)
-
+from zipline.testing import patch_read_csv, tmp_dir
+from zipline.testing.fixtures import WithResponses, ZiplineTestCase
+from zipline.utils.calendar_utils import get_calendar
 from zipline.utils.functional import apply
 
-TEST_RESOURCE_PATH = join(
-    dirname(dirname(dirname(realpath(__file__)))),
-    "resources",  # zipline_repo/tests
-)
+# zipline_repo/tests
+TEST_RESOURCE_PATH = Path(__file__).parent.parent.parent / "resources"
 
 
 class QuandlBundleTestCase(WithResponses, ZiplineTestCase):
@@ -48,7 +36,7 @@ class QuandlBundleTestCase(WithResponses, ZiplineTestCase):
 
         # Load raw data from quandl test resources.
         data = load_data_table(
-            file=join(TEST_RESOURCE_PATH, "quandl_samples", "QUANDL_ARCHIVE.zip"),
+            file=TEST_RESOURCE_PATH / "quandl_samples" / "QUANDL_ARCHIVE.zip",
             index_col="date",
         )
         data["sid"] = pd.factorize(data.symbol)[0]
@@ -187,7 +175,7 @@ class QuandlBundleTestCase(WithResponses, ZiplineTestCase):
 
     def test_bundle(self):
         with open(
-            join(TEST_RESOURCE_PATH, "quandl_samples", "QUANDL_ARCHIVE.zip"),
+            TEST_RESOURCE_PATH / "quandl_samples" / "QUANDL_ARCHIVE.zip",
             "rb",
         ) as quandl_response:
             self.responses.add(
@@ -199,11 +187,9 @@ class QuandlBundleTestCase(WithResponses, ZiplineTestCase):
             )
 
         url_map = {
-            format_metadata_url(self.api_key): join(
-                TEST_RESOURCE_PATH,
-                "quandl_samples",
-                "metadata.csv.gz",
-            )
+            format_metadata_url(self.api_key): TEST_RESOURCE_PATH
+            / "quandl_samples"
+            / "metadata.csv.gz"
         }
 
         zipline_root = self.enter_instance_context(tmp_dir()).path

@@ -12,22 +12,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from datetime import timedelta, time
+from datetime import time, timedelta
 from itertools import chain
 
 import numpy as np
 import pandas as pd
 import pytest
-from numpy import nan
 from numpy.testing import assert_almost_equal
 from parameterized import parameterized
 from toolz import concat
-from zipline._protocol import handle_non_market_minutes
 
+from zipline._protocol import handle_non_market_minutes
 from zipline.finance.asset_restrictions import (
-    Restriction,
-    HistoricalRestrictions,
     RESTRICTION_STATES,
+    HistoricalRestrictions,
+    Restriction,
 )
 from zipline.testing import (
     MockDailyBarReader,
@@ -35,12 +34,8 @@ from zipline.testing import (
     create_minute_df_for_asset,
     str_to_seconds,
 )
-from zipline.testing.fixtures import (
-    WithCreateBarData,
-    WithDataPortal,
-    ZiplineTestCase,
-)
-from zipline.utils.calendar_utils import get_calendar, days_at_time
+from zipline.testing.fixtures import WithCreateBarData, WithDataPortal, ZiplineTestCase
+from zipline.utils.calendar_utils import days_at_time, get_calendar
 
 OHLC = ["open", "high", "low", "close"]
 OHLCP = OHLC + ["price"]
@@ -1063,12 +1058,12 @@ class TestDailyBarData(
             assert not bar_data.is_stale(asset)
 
             if asset in (1, 2):
-                assert_almost_equal(nan, bar_data.current(asset, "open"))
-                assert_almost_equal(nan, bar_data.current(asset, "high"))
-                assert_almost_equal(nan, bar_data.current(asset, "low"))
-                assert_almost_equal(nan, bar_data.current(asset, "close"))
+                assert_almost_equal(np.nan, bar_data.current(asset, "open"))
+                assert_almost_equal(np.nan, bar_data.current(asset, "high"))
+                assert_almost_equal(np.nan, bar_data.current(asset, "low"))
+                assert_almost_equal(np.nan, bar_data.current(asset, "close"))
                 assert_almost_equal(0, bar_data.current(asset, "volume"))
-                assert_almost_equal(nan, bar_data.current(asset, "price"))
+                assert_almost_equal(np.nan, bar_data.current(asset, "price"))
             else:
                 assert 6 == bar_data.current(asset, "open")
                 assert 7 == bar_data.current(asset, "high")

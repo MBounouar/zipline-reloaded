@@ -14,7 +14,7 @@
 # limitations under the License.
 from abc import ABC, abstractmethod
 
-from numpy import full, nan, int64, zeros
+import numpy as np
 
 from zipline.utils.memoize import lazyval
 
@@ -57,7 +57,7 @@ class AssetDispatchBarReader(ABC):
 
     @abstractmethod
     def _dt_window_size(self, start_dt, end_dt):
-        pass
+        ...
 
     @property
     def _asset_types(self):
@@ -68,9 +68,9 @@ class AssetDispatchBarReader(ABC):
 
     def _make_raw_array_out(self, field, shape):
         if field != "volume" and field != "sid":
-            out = full(shape, nan)
+            out = np.full(shape, np.nan)
         else:
-            out = zeros(shape, dtype=int64)
+            out = np.zeros(shape, dtype=np.int64)
         return out
 
     @property

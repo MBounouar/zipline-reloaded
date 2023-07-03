@@ -27,6 +27,7 @@ from zipline.data.bar_reader import NoDataAfterDate, NoDataBeforeDate, NoDataOnD
 from zipline.data.session_bars import CurrencyAwareSessionBarReader
 from zipline.utils.calendar_utils import get_calendar
 from zipline.utils.cli import maybe_show_progress
+from zipline.utils.data import OHLC
 from zipline.utils.functional import apply
 from zipline.utils.input_validation import expect_element
 from zipline.utils.memoize import lazyval
@@ -36,7 +37,6 @@ from ._equities import _compute_row_slices, _read_bcolz_data
 
 logger = logging.getLogger("UsEquityPricing")
 
-OHLC = frozenset(["open", "high", "low", "close"])
 US_EQUITY_PRICING_BCOLZ_COLUMNS = (
     "open",
     "high",

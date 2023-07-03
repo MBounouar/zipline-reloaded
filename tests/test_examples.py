@@ -13,13 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import pytest
+from pathlib import Path
 import warnings
 from functools import partial
 from itertools import combinations
 from operator import itemgetter
 import tarfile
 from os import listdir
-from os.path import dirname, join, realpath
 import matplotlib
 import pandas as pd
 from zipline import examples
@@ -28,9 +28,7 @@ from zipline.testing.fixtures import read_checked_in_benchmark_data
 from zipline.testing.predicates import assert_equal
 from zipline.utils.cache import dataframe_cache
 
-TEST_RESOURCE_PATH = join(
-    dirname(realpath(__file__)), "resources"  # zipline_repo/tests
-)
+TEST_RESOURCE_PATH = Path(__file__).parent / "resources"
 
 PANDAS_VERSION = pd.__version__.replace(".", "-")
 
@@ -51,7 +49,7 @@ def _no_benchmark_expectations_applied(expected_perf):
 
 
 def _stored_pd_data(skip_vers=["0-18-1", "0-19-2", "0-22-0", "1-1-3", "1-2-3"]):
-    with tarfile.open(join(TEST_RESOURCE_PATH, "example_data.tar.gz")) as tar:
+    with tarfile.open(TEST_RESOURCE_PATH / "example_data.tar.gz") as tar:
         pd_versions = {
             n.split("/")[2]
             for n in tar.getnames()
@@ -68,18 +66,14 @@ COMBINED_DATA_VERSIONS = list(combinations(STORED_DATA_VERSIONS, 2))
 @pytest.fixture(scope="class")
 def _setup_class(request, tmpdir_factory):
     request.cls.tmp_path = tmpdir_factory.mktemp("tmp")
-    request.cls.tmpdir = str(request.cls.tmp_path)
+    request.cls.tmpdir = request.cls.tmp_path
     register("test", lambda *args: None)
 
-    with tarfile.open(join(TEST_RESOURCE_PATH, "example_data.tar.gz")) as tar:
+    with tarfile.open(TEST_RESOURCE_PATH / "example_data.tar.gz") as tar:
         tar.extractall(request.cls.tmpdir)
 
     request.cls.expected_perf_dirs = listdir(
-        join(
-            str(request.cls.tmp_path),
-            "example_data",
-            "expected_perf",
-        )
+        request.cls.tmp_path / "example_data" / "expected_perf",
     )
 
     if PANDAS_VERSION not in request.cls.expected_perf_dirs:
@@ -95,11 +89,7 @@ def _setup_class(request, tmpdir_factory):
 @pytest.fixture(scope="function")
 def _df_cache(_setup_class, request):
     request.cls.expected_perf = dataframe_cache(
-        join(
-            str(request.cls.tmp_path),
-            "example_data",
-            f"expected_perf/{request.param}",
-        ),
+        request.cls.tmp_path / "example_data" / f"expected_perf/{request.param}",
         serialization="pickle",
     )
 
@@ -127,7 +117,7 @@ class TestsExamplesTests:
             # This should match the invocation in
             # zipline/tests/resources/rebuild_example_data
             environ={
-                "ZIPLINE_ROOT": join(self.tmpdir, "example_data", "root"),
+                "ZIPLINE_ROOT": str(self.tmpdir / "example_data" / "root"),
             },
             benchmark_returns=benchmark_returns,
         )
@@ -160,11 +150,7 @@ class TestsExamplesTests:
 class TestsStoredDataCheck:
     def expected_perf(self, pd_version):
         return dataframe_cache(
-            join(
-                str(self.tmp_path),
-                "example_data",
-                f"expected_perf/{pd_version}",
-            ),
+            self.tmp_path / "example_data" / f"expected_perf/{pd_version}",
             serialization="pickle",
         )
 

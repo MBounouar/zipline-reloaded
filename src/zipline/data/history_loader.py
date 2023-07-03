@@ -12,10 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from abc import (
-    ABC,
-    abstractmethod,
-)
+from abc import ABC, abstractmethod
 
 import numpy as np
 from lru import LRU
@@ -310,16 +307,16 @@ class HistoryLoader(ABC):
     @property
     @abstractmethod
     def _frequency(self):
-        pass
+        ...
 
     @property
     @abstractmethod
     def _calendar(self):
-        pass
+        ...
 
     @abstractmethod
     def _array(self, start, end, assets, field):
-        pass
+        ...
 
     def _decimal_places_for_asset(self, asset, reference_date):
         if isinstance(asset, Future) and asset.tick_size:

@@ -1,9 +1,10 @@
-from functools import reduce
 import operator as op
+import re
+from functools import reduce
 
 import numpy as np
-from numpy import nan
 import pandas as pd
+import pytest
 
 from zipline.lib.labelarray import LabelArray
 from zipline.pipeline import Classifier
@@ -11,14 +12,9 @@ from zipline.pipeline.data.testing import TestingDataSet
 from zipline.pipeline.expression import methods_to_ops
 from zipline.testing import parameter_space
 from zipline.testing.predicates import assert_equal
-from zipline.utils.numpy_utils import (
-    categorical_dtype,
-    int64_dtype,
-)
+from zipline.utils.numpy_utils import categorical_dtype, int64_dtype
 
 from .base import BaseUSEquityPipelineTestCase
-import pytest
-import re
 
 bytes_dtype = np.dtype("S3")
 unicode_dtype = np.dtype("U3")
@@ -631,9 +627,9 @@ class ClassifierTestCase(BaseUSEquityPipelineTestCase):
             mask = self.build_mask(self.ones_mask(shape=data.shape))
             expected = np.array(
                 [
-                    [3, 3, nan, 1, 3, nan],
+                    [3, 3, np.nan, 1, 3, np.nan],
                     [4, 1, 1, 4, 4, 4],
-                    [nan, 1, 3, 3, 3, nan],
+                    [np.nan, 1, 3, 3, 3, np.nan],
                     [6, 6, 6, 6, 6, 6],
                 ],
             )
@@ -653,10 +649,10 @@ class ClassifierTestCase(BaseUSEquityPipelineTestCase):
             )
             expected = np.array(
                 [
-                    [2, 2, nan, 1, nan, nan],
-                    [3, 1, 1, 3, 3, nan],
-                    [nan, 1, 3, 3, 3, nan],
-                    [4, 4, nan, nan, 4, 4],
+                    [2, 2, np.nan, 1, np.nan, np.nan],
+                    [3, 1, 1, 3, 3, np.nan],
+                    [np.nan, 1, 3, 3, 3, np.nan],
+                    [4, 4, np.nan, np.nan, 4, 4],
                 ],
             )
 

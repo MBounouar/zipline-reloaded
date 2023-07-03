@@ -12,15 +12,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import logging
+from functools import reduce
 from operator import mul
 
-import logging
-
 import numpy as np
-from numpy import float64, int64, nan
 import pandas as pd
-from pandas import isnull
-from functools import reduce
 
 from zipline.assets import (
     Asset,
@@ -30,32 +27,25 @@ from zipline.assets import (
     PricingDataAssociable,
 )
 from zipline.assets.continuous_futures import ContinuousFuture
+from zipline.assets.roll_finder import CalendarRollFinder, VolumeRollFinder
+from zipline.data.bar_reader import NoDataOnDate
 from zipline.data.continuous_future_reader import (
-    ContinuousFutureSessionBarReader,
     ContinuousFutureMinuteBarReader,
-)
-from zipline.assets.roll_finder import (
-    CalendarRollFinder,
-    VolumeRollFinder,
+    ContinuousFutureSessionBarReader,
 )
 from zipline.data.dispatch_bar_reader import (
     AssetDispatchMinuteBarReader,
     AssetDispatchSessionBarReader,
 )
+from zipline.data.history_loader import DailyHistoryLoader, MinuteHistoryLoader
 from zipline.data.resample import (
     DailyHistoryAggregator,
     ReindexMinuteBarReader,
     ReindexSessionBarReader,
 )
-from zipline.data.history_loader import (
-    DailyHistoryLoader,
-    MinuteHistoryLoader,
-)
-from zipline.data.bar_reader import NoDataOnDate
-
-from zipline.utils.memoize import remember_last
 from zipline.errors import HistoryWindowStartsBeforeData
-
+from zipline.utils.data import OHLCV_FIELDS, OHLCVP_FIELDS
+from zipline.utils.memoize import remember_last
 
 log = logging.getLogger("DataPortal")
 
@@ -73,9 +63,6 @@ BASE_FIELDS = frozenset(
     ]
 )
 
-OHLCV_FIELDS = frozenset(["open", "high", "low", "close", "volume"])
-
-OHLCVP_FIELDS = frozenset(["open", "high", "low", "close", "volume", "price"])
 
 HISTORY_FREQUENCIES = set(["1m", "1d"])
 
@@ -713,7 +700,7 @@ class DataPortal:
         if column == "last_traded":
             last_traded_dt = reader.get_last_traded_dt(asset, dt)
 
-            if isnull(last_traded_dt):
+            if pd.isnull(last_traded_dt):
                 return pd.NaT
             else:
                 return last_traded_dt
@@ -728,7 +715,7 @@ class DataPortal:
             while True:
                 try:
                     value = reader.get_value(asset, found_dt, "close")
-                    if not isnull(value):
+                    if not pd.isnull(value):
                         if dt == found_dt:
                             return value
                         else:
@@ -914,7 +901,7 @@ class DataPortal:
             else:
                 raise Exception("Only 1d and 1m are supported for forward-filling.")
 
-            assets_with_leading_nan = np.where(isnull(df.iloc[0]))[0]
+            assets_with_leading_nan = np.where(pd.isnull(df.iloc[0]))[0]
 
             history_start, history_end = df.index[[0, -1]]
             if ffill_data_frequency == "daily" and data_frequency == "minute":
@@ -931,8 +918,8 @@ class DataPortal:
                     history_start,
                     ffill_data_frequency,
                 )
-                if isnull(last_traded):
-                    initial_values.append(nan)
+                if pd.isnull(last_traded):
+                    initial_values.append(np.nan)
                 else:
                     initial_values.append(
                         self.get_adjusted_value(
@@ -961,7 +948,7 @@ class DataPortal:
                     df.loc[
                         normed_index > asset.end_date.tz_localize(normed_index.tz),
                         asset,
-                    ] = nan
+                    ] = np.nan
         return df
 
     def _get_minute_window_data(self, assets, field, minutes_for_window):
@@ -1024,7 +1011,7 @@ class DataPortal:
         """
         bar_count = len(days_in_window)
         # create an np.array of size bar_count
-        dtype = float64 if field != "sid" else int64
+        dtype = np.float64 if field != "sid" else np.int64
         if extra_slot:
             return_array = np.zeros((bar_count + 1, len(assets)), dtype=dtype)
         else:
@@ -1032,7 +1019,7 @@ class DataPortal:
 
         if field != "volume":
             # volumes default to 0, so we don't need to put NaNs in the array
-            return_array = return_array.astype(float64)
+            return_array = return_array.astype(np.float64)
             return_array[:] = np.NAN
 
         if bar_count != 0:

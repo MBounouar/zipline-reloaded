@@ -14,25 +14,26 @@
 from collections import OrderedDict
 from numbers import Real
 
-from parameterized import parameterized
-from numpy.testing import assert_almost_equal
-from numpy import nan, array, full, isnan
+from numpy import nan
+import numpy as np
 import pandas as pd
 
+from numpy.testing import assert_almost_equal
+from parameterized import parameterized
+
 from zipline.data.resample import (
-    minute_frame_to_session_frame,
     DailyHistoryAggregator,
     MinuteResampleSessionBarReader,
     ReindexMinuteBarReader,
     ReindexSessionBarReader,
+    minute_frame_to_session_frame,
 )
-
 from zipline.testing import parameter_space
 from zipline.testing.fixtures import (
-    WithEquityMinuteBarData,
-    WithBcolzEquityMinuteBarReader,
     WithBcolzEquityDailyBarReader,
+    WithBcolzEquityMinuteBarReader,
     WithBcolzFutureMinuteBarReader,
+    WithEquityMinuteBarData,
     ZiplineTestCase,
 )
 
@@ -101,7 +102,7 @@ SCENARIOS = OrderedDict(
     (
         (
             "none_missing",
-            array(
+            np.array(
                 [
                     [101.5, 101.9, 101.1, 101.3, 1001],
                     [103.5, 103.9, 103.1, 103.3, 1003],
@@ -111,7 +112,7 @@ SCENARIOS = OrderedDict(
         ),
         (
             "all_missing",
-            array(
+            np.array(
                 [
                     [nan, nan, nan, nan, 0],
                     [nan, nan, nan, nan, 0],
@@ -121,7 +122,7 @@ SCENARIOS = OrderedDict(
         ),
         (
             "missing_first",
-            array(
+            np.array(
                 [
                     [nan, nan, nan, nan, 0],
                     [103.5, 103.9, 103.1, 103.3, 1003],
@@ -131,7 +132,7 @@ SCENARIOS = OrderedDict(
         ),
         (
             "missing_last",
-            array(
+            np.array(
                 [
                     [107.5, 107.9, 107.1, 107.3, 1007],
                     [108.5, 108.9, 108.1, 108.3, 1008],
@@ -141,7 +142,7 @@ SCENARIOS = OrderedDict(
         ),
         (
             "missing_middle",
-            array(
+            np.array(
                 [
                     [103.5, 103.9, 103.1, 103.3, 1003],
                     [nan, nan, nan, nan, 0],
@@ -765,7 +766,7 @@ class TestReindexMinuteBars(WithBcolzEquityMinuteBarReader, ZiplineTestCase):
 
         assert_almost_equal(
             opens[1][slicer],
-            full(slicer.stop, nan),
+            np.full(slicer.stop, nan),
             err_msg="All values before the NYSE market open should be nan.",
         )
 
@@ -775,7 +776,7 @@ class TestReindexMinuteBars(WithBcolzEquityMinuteBarReader, ZiplineTestCase):
 
         assert_almost_equal(
             opens[1][slicer],
-            full(slicer.stop - slicer.start, nan),
+            np.full(slicer.stop - slicer.start, nan),
             err_msg="All values after the NYSE market close should be nan.",
         )
 
@@ -911,7 +912,7 @@ class TestReindexSessionBars(WithBcolzEquityDailyBarReader, ZiplineTestCase):
         )
         tday = pd.Timestamp("2015-11-26", tz="UTC")
 
-        assert isnan(self.reader.get_value(1, tday, "close"))
+        assert np.isnan(self.reader.get_value(1, tday, "close"))
 
         assert self.reader.get_value(1, tday, "volume") == 0
 
