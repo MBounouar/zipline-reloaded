@@ -36,10 +36,7 @@ from zipline.testing import (
 )
 from zipline.testing.fixtures import WithCreateBarData, WithDataPortal, ZiplineTestCase
 from zipline.utils.calendar_utils import days_at_time, get_calendar
-
-OHLC = ["open", "high", "low", "close"]
-OHLCP = OHLC + ["price"]
-ALL_FIELDS = OHLCP + ["volume", "last_traded"]
+from zipline.utils.data import ALL_FIELDS, OHLC, OHLCP, OHLCVP
 
 # offsets used in test data
 field_info = {"open": 1, "high": 2, "low": -1, "close": 0}
@@ -646,7 +643,7 @@ class TestMinuteBarData(
         }
 
         with handle_non_market_minutes(bar_data):
-            for field in OHLCP + ["volume"]:
+            for field in OHLCVP:
                 value = bar_data.current(self.SPLIT_ASSET, field)
 
                 # Assert the price is adjusted for the overnight split

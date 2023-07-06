@@ -115,6 +115,7 @@ from zipline.data.session_bars import CurrencyAwareSessionBarReader
 from zipline.utils.memoize import lazyval
 from zipline.utils.numpy_utils import bytes_array_to_native_str_object_array
 from zipline.utils.pandas_utils import check_indexes_all_same
+from zipline.utils.data import OHLCV
 
 log = logging.getLogger("HDF5DailyBars")
 
@@ -134,7 +135,7 @@ LOW = "low"
 CLOSE = "close"
 VOLUME = "volume"
 
-FIELDS = (OPEN, HIGH, LOW, CLOSE, VOLUME)
+FIELDS = OHLCV
 
 DAY = "day"
 SID = "sid"

@@ -245,7 +245,7 @@ class BcolzDailyBarWriter:
         if assets is not None:
 
             @apply
-            def iterator(iterator=iterator, assets=set(assets)):
+            def iterator(iterator=iterator, assets=frozenset(assets)):
                 for asset_id, table in iterator:
                     if asset_id not in assets:
                         raise ValueError("unknown asset id %r" % asset_id)

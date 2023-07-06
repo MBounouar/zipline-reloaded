@@ -441,7 +441,7 @@ def _make_bundle_core():
                         "writers in order to downgrade the assets"
                         " db."
                     )
-            log.info("Ingesting %s", name)
+            log.info(f"Ingesting {name}")
             bundle.ingest(
                 environ,
                 asset_db_writer,

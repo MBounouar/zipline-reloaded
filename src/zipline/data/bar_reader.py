@@ -14,12 +14,16 @@
 from abc import ABC, abstractmethod
 
 
-class NoDataOnDate(Exception):
-    """
-    Raised when a spot price cannot be found for the sid and date.
-    """
-
+class OverlappingData(Exception):
     ...
+
+
+class NotValidDate(Exception):
+    """Raised when a date is not a valid calendar date"""
+
+
+class NoDataOnDate(Exception):
+    """Raised when a spot price cannot be found for the sid and date."""
 
 
 class NoDataBeforeDate(NoDataOnDate):
@@ -31,14 +35,9 @@ class NoDataAfterDate(NoDataOnDate):
 
 
 class NoDataForSid(Exception):
-    """
-    Raised when the requested sid is missing from the pricing data.
-    """
+    """Raised when the requested sid is missing from the pricing data."""
 
     ...
-
-
-OHLCV = ("open", "high", "low", "close", "volume")
 
 
 class BarReader(ABC):

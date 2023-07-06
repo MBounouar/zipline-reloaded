@@ -18,9 +18,11 @@ from copy import deepcopy
 import numpy as np
 import pandas as pd
 
-OHLC = frozenset(["open", "high", "low", "close"])
-OHLCV_FIELDS = frozenset(["open", "high", "low", "close", "volume"])
-OHLCVP_FIELDS = frozenset(["open", "high", "low", "close", "volume", "price"])
+OHLC = ("open", "high", "low", "close")
+OHLCP = ("open", "high", "low", "close", "price")
+OHLCV = ("open", "high", "low", "close", "volume")
+OHLCVP = ("open", "high", "low", "close", "volume", "price")
+ALL_FIELDS = ("open", "high", "low", "close", "volume", "price", "last_traded")
 
 
 def _ensure_index(x):

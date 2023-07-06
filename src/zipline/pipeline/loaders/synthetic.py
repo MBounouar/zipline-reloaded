@@ -22,7 +22,7 @@ from zipline.utils.numpy_utils import (
     int64_dtype,
     object_dtype,
 )
-
+from zipline.utils.data import OHLC, OHLCV
 
 UINT_32_MAX = np.iinfo(np.uint32).max
 
@@ -179,9 +179,6 @@ class SeededRandomLoader(PrecomputedLoader):
         res = self._int_values(shape).astype(str).astype(object)
         return res
 
-
-OHLCV = ("open", "high", "low", "close", "volume")
-OHLC = ("open", "high", "low", "close")
 
 PSEUDO_EPOCH_UTC = Timestamp("2000-01-01", tz="UTC")
 PSEUDO_EPOCH_NAIVE = Timestamp("2000-01-01")

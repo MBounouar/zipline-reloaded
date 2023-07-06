@@ -44,7 +44,7 @@ from zipline.data.resample import (
     ReindexSessionBarReader,
 )
 from zipline.errors import HistoryWindowStartsBeforeData
-from zipline.utils.data import OHLCV_FIELDS, OHLCVP_FIELDS
+from zipline.utils.data import OHLCV, OHLCVP
 from zipline.utils.memoize import remember_last
 
 log = logging.getLogger("DataPortal")
@@ -704,7 +704,7 @@ class DataPortal:
                 return pd.NaT
             else:
                 return last_traded_dt
-        elif column in OHLCV_FIELDS:
+        elif column in OHLCV:
             # don't forward fill
             try:
                 return reader.get_value(asset, dt, column)
@@ -869,7 +869,7 @@ class DataPortal:
         -------
         A dataframe containing the requested data.
         """
-        if field not in OHLCVP_FIELDS and field != "sid":
+        if field not in OHLCVP and field != "sid":
             raise ValueError(f"Invalid field: {field}")
 
         if bar_count < 1:

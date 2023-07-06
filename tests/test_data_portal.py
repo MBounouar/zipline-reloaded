@@ -19,7 +19,7 @@ from numpy.testing import assert_almost_equal
 import pandas as pd
 
 from zipline.assets import Equity, Future
-from zipline.data.data_portal import HISTORY_FREQUENCIES, OHLCV_FIELDS
+from zipline.data.data_portal import HISTORY_FREQUENCIES, OHLCV
 from zipline.data.bcolz_minute_bars import (
     FUTURES_MINUTES_PER_DAY,
     US_EQUITIES_MINUTES_PER_DAY,
@@ -487,7 +487,7 @@ class DataPortalTestBase(WithDataPortal, WithTradingSessions):
         splits = self.data_portal.get_splits([], self.trading_days[2])
         assert [] == splits
 
-    @parameter_space(frequency=HISTORY_FREQUENCIES, field=OHLCV_FIELDS)
+    @parameter_space(frequency=HISTORY_FREQUENCIES, field=OHLCV)
     def test_price_rounding(self, frequency, field):
         equity = self.asset_finder.retrieve_asset(2)
         future = self.asset_finder.retrieve_asset(10001)
