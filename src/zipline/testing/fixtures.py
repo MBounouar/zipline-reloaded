@@ -60,9 +60,9 @@ from ..data.fx import (
     HDF5FXRateWriter,
 )
 from ..data.hdf5_daily_bars import (
-    HDF5DailyBarReader,
-    HDF5DailyBarWriter,
-    MultiCountryDailyBarReader,
+    HDF5BarReader,
+    HDF5BarWriter,
+    MultiExchangeDailyBarReader,
 )
 from ..data.bcolz_minute_bars import (
     BcolzMinuteBarReader,
@@ -1179,7 +1179,8 @@ def _trading_days_for_minute_bars(calendar, start_date, end_date, lookback_days)
 # TODO_SS: This currently doesn't define any relationship between country_code
 #          and calendar, which would be useful downstream.
 class WithWriteHDF5DailyBars(WithEquityDailyBarData, WithTmpDir):
-    """Fixture class defining the capability of writing HDF5 daily bars to disk.
+    """
+    Fixture class defining the capability of writing HDF5 daily bars to disk.
 
     Uses cls.make_equity_daily_bar_data (inherited from WithEquityDailyBarData)
     to determine the data to write.
@@ -1216,11 +1217,12 @@ class WithWriteHDF5DailyBars(WithEquityDailyBarData, WithTmpDir):
              teardown.
         """
         ensure_directory_containing(path)
-        writer = HDF5DailyBarWriter(path, cls.HDF5_DAILY_BAR_CHUNK_SIZE)
+        writer = HDF5BarWriter(path, cls.HDF5_DAILY_BAR_CHUNK_SIZE)
         write_hdf5_daily_bars(
             writer,
             cls.asset_finder,
             country_codes,
+            dict(zip(country_codes, cls.exchange_names)),
             cls.make_equity_daily_bar_data,
             cls.make_equity_daily_bar_currency_codes,
         )
@@ -1229,8 +1231,9 @@ class WithWriteHDF5DailyBars(WithEquityDailyBarData, WithTmpDir):
         return cls.enter_class_context(writer.h5_file(mode="r"))
 
 
-class WithHDF5EquityMultiCountryDailyBarReader(WithWriteHDF5DailyBars):
-    """Fixture providing cls.hdf5_daily_bar_path and
+class WithHDF5EquityMultiExchangeDailyBarReader(WithWriteHDF5DailyBars):
+    """
+    Fixture providing cls.hdf5_daily_bar_path and
     cls.hdf5_equity_daily_bar_reader class level fixtures.
 
     After init_class_fixtures has been called:
@@ -1273,7 +1276,7 @@ class WithHDF5EquityMultiCountryDailyBarReader(WithWriteHDF5DailyBars):
     @classmethod
     def init_class_fixtures(cls):
         super(
-            WithHDF5EquityMultiCountryDailyBarReader,
+            WithHDF5EquityMultiExchangeDailyBarReader,
             cls,
         ).init_class_fixtures()
 
@@ -1281,13 +1284,13 @@ class WithHDF5EquityMultiCountryDailyBarReader(WithWriteHDF5DailyBars):
 
         f = cls.write_hdf5_daily_bars(path, cls.HDF5_DAILY_BAR_COUNTRY_CODES)
 
-        cls.single_country_hdf5_equity_daily_bar_readers = {
-            country_code: HDF5DailyBarReader.from_file(f, country_code)
-            for country_code in f
+        cls.single_exchange_hdf5_equity_daily_bar_readers = {
+            exchange_code: HDF5BarReader.from_file(f, exchange_code)
+            for exchange_code in f
         }
 
-        cls.hdf5_equity_daily_bar_reader = MultiCountryDailyBarReader(
-            cls.single_country_hdf5_equity_daily_bar_readers
+        cls.hdf5_equity_daily_bar_reader = MultiExchangeDailyBarReader(
+            cls.single_exchange_hdf5_equity_daily_bar_readers
         )
 
 
